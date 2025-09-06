@@ -33,6 +33,14 @@ watch(selectedModel, (newModel) => {
   }
 })
 
+// Watch for firmware store changes to sync selectedModel
+watch(() => firmware.selectedDevice, (newDevice) => {
+  const newTitle = newDevice?.title || ''
+  if (selectedModel.value !== newTitle) {
+    selectedModel.value = newTitle
+  }
+}, { immediate: true })
+
 const sortedVersions = computed(() => {
   return [...firmware.versions].sort((b, a) =>
     (a + (a.indexOf("-") < 0 ? "-Z" : "")).localeCompare(

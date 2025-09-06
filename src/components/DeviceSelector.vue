@@ -59,6 +59,13 @@ watch(searchInput, async (newValue) => {
   }
 })
 
+// Watch for changes in modelValue from parent component
+watch(() => props.modelValue, (newValue) => {
+  if (newValue && newValue !== searchInput.value) {
+    searchInput.value = newValue
+  }
+}, { immediate: true })
+
 function selectDevice(deviceTitle: string) {
   searchInput.value = deviceTitle
   searchTerm.value = deviceTitle

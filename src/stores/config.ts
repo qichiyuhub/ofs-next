@@ -330,6 +330,18 @@ export const useConfigStore = defineStore('config', () => {
   function newConfiguration(): void {
     currentConfigId.value = ''
     currentConfigName.value = ''
+    
+    // Clear all selections
+    firmwareStore.selectedDevice = null
+    firmwareStore.selectedProfile = null
+    
+    // Clear package selections
+    packageStore.clearAllPackages()
+    
+    // Clear module selections
+    moduleStore.sources = []
+    moduleStore.selections = []
+    
     // Clear last used configuration when creating new one
     configManager.clearLastUsedConfigId()
   }
