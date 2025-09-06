@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
+import { usePackageStore } from '@/stores/package'
 import { config } from '@/config'
 import DeviceSelector from './DeviceSelector.vue'
 import DeviceDetails from './DeviceDetails.vue'
@@ -13,6 +14,7 @@ const props = defineProps<{
 
 const i18n = useI18nStore()
 const firmware = useFirmwareStore()
+const packageStore = usePackageStore()
 
 const selectedModel = ref('')
 
@@ -24,9 +26,14 @@ watch(() => firmware.currentVersion, (newVersion) => {
 })
 
 // Watch for model selection
-watch(selectedModel, (newModel) => {
+watch(selectedModel, (newModel, oldModel) => {
   if (newModel) {
     firmware.selectDevice(newModel)
+    
+    // Clear package selections when switching devices to avoid architecture conflicts
+    if (oldModel && oldModel !== newModel) {
+      packageStore.clearAllPackages()
+    }
   } else {
     firmware.selectedDevice = null
     firmware.selectedProfile = null
