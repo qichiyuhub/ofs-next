@@ -55,9 +55,16 @@ export const useFirmwareStore = defineStore('firmware', () => {
 
       // Filter out unsupported versions
       const unsupportedVersionsRe = /^(19\.07\.\d|18\.06\.\d|17\.01\.\d)$/
-      versions.value = response.versions_list.filter(version =>
+      let filteredVersions = response.versions_list.filter(version =>
         !unsupportedVersionsRe.test(version)
       )
+
+      // Add snapshot versions if enabled
+      if (config.show_snapshots) {
+        filteredVersions = insertSnapshotVersions(filteredVersions)
+      }
+
+      versions.value = filteredVersions
 
       if (response.stable_version) {
         defaultVersion.value = response.stable_version
@@ -173,6 +180,23 @@ export const useFirmwareStore = defineStore('firmware', () => {
 
   function clearAlert() {
     alertMessage.value = ''
+  }
+
+  function insertSnapshotVersions(versions: string[]): string[] {
+    const result = [...versions]
+    
+    // Add branch snapshots for each version
+    for (const version of versions) {
+      const branch = version.split('.').slice(0, -1).join('.') + '-SNAPSHOT'
+      if (!result.includes(branch)) {
+        result.push(branch)
+      }
+    }
+    
+    // Add main SNAPSHOT
+    result.push('SNAPSHOT')
+    
+    return result
   }
 
   function getModelTitles(titles: Array<{title?: string, vendor?: string, model?: string, variant?: string}>): string[] {

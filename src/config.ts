@@ -1,4 +1,10 @@
 export interface Config {
+  // Brand name
+  brand_name: string
+
+  // Homepage URL (for logo link)
+  homepage_url: string
+
   // Show help text for images
   show_help: boolean
 
@@ -23,6 +29,12 @@ export interface Config {
 }
 
 export const config: Config = {
+  // Brand name
+  brand_name: "OpenWrt",
+
+  // Homepage URL (for logo link)
+  homepage_url: "https://openwrt.org",
+
   // Show help text for images
   show_help: true,
 
@@ -36,7 +48,7 @@ export const config: Config = {
   image_url: "https://downloads.openwrt.org",
 
   // Insert snapshot versions (optional)
-  //show_snapshots: true,
+  show_snapshots: true,
 
   // Info link URL (optional)
   info_url: "https://openwrt.org/start?do=search&id=toh&q={title} @toh",

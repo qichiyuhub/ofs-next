@@ -327,26 +327,19 @@ onUnmounted(() => {
         </v-row>
 
         <!-- Package Summary -->
-        <v-card v-if="finalPackages.length > 0" variant="outlined" class="mt-4 mb-4">
+        <v-card v-if="finalPackages.length > 0" variant="elevated" class="mt-4 mb-4">
           <v-card-title class="text-subtitle1">
             软件包摘要 ({{ finalPackages.length }} 个)
           </v-card-title>
           <v-card-text>
             <div class="d-flex flex-wrap gap-1">
               <v-chip
-                v-for="pkg in finalPackages.slice(0, 20)"
+                v-for="pkg in finalPackages"
                 :key="pkg"
                 size="small"
                 variant="outlined"
               >
                 {{ pkg }}
-              </v-chip>
-              <v-chip
-                v-if="finalPackages.length > 20"
-                size="small"
-                variant="outlined"
-              >
-                +{{ finalPackages.length - 20 }} more...
               </v-chip>
             </div>
           </v-card-text>

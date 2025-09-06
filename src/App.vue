@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
+import { config } from '@/config'
 import FirmwareSelector from '@/components/FirmwareSelector.vue'
 
 const i18nStore = useI18nStore()
@@ -24,13 +25,16 @@ onMounted(async () => {
   <v-app>
     <v-app-bar elevation="2" color="primary" theme="dark">
       <div class="d-flex align-center w-100">
-        <v-img
-          src="/logo.svg"
-          alt="OpenWrt Logo"
-          max-width="180"
-          height="40"
-          class="mr-4"
-        />
+        <a :href="config.homepage_url" target="_blank" rel="noopener noreferrer">
+          <img
+            src="/logo.svg"
+            :alt="`${config.brand_name} Logo`"
+            width="180"
+            height="40"
+            class="mr-4"
+            style="cursor: pointer;"
+          />
+        </a>
         
         <v-spacer />
         

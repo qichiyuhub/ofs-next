@@ -152,11 +152,6 @@ function getImageIcon(type: string): string {
   return 'mdi-download'
 }
 
-function getImageColor(type: string): string {
-  if (type.includes('sysupgrade')) return 'primary'
-  if (type.includes('factory')) return 'secondary'
-  return 'default'
-}
 </script>
 
 <template>
@@ -175,7 +170,7 @@ function getImageColor(type: string): string {
           lines="three"
         >
           <template #prepend>
-            <v-avatar :color="getImageColor(image.type)" variant="tonal">
+            <v-avatar color="primary" variant="tonal">
               <v-icon :icon="getImageIcon(image.type)" />
             </v-avatar>
           </template>
@@ -183,7 +178,7 @@ function getImageColor(type: string): string {
           <v-list-item-title class="d-flex align-center">
             <v-btn
               :href="image.downloadUrl"
-              :color="getImageColor(image.type)"
+              color="primary"
               variant="elevated"
               class="mr-4"
               prepend-icon="mdi-download"
