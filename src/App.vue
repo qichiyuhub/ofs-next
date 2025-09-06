@@ -1,85 +1,75 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { onMounted } from 'vue'
+import { useI18nStore } from '@/stores/i18n'
+import { useFirmwareStore } from '@/stores/firmware'
+import FirmwareSelector from '@/components/FirmwareSelector.vue'
+
+const i18nStore = useI18nStore()
+const firmwareStore = useFirmwareStore()
+
+onMounted(async () => {
+  // Initialize translation
+  const lang = i18nStore.detectLanguage()
+  await i18nStore.loadTranslation(lang)
+  
+  // Initialize firmware data
+  await firmwareStore.loadVersions()
+  if (firmwareStore.currentVersion) {
+    await firmwareStore.loadDevices(firmwareStore.currentVersion)
+  }
+})
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <v-app>
+    <v-app-bar elevation="2" color="primary" theme="dark">
+      <div class="d-flex align-center w-100">
+        <v-img
+          src="/logo.svg"
+          alt="OpenWrt Logo"
+          max-width="180"
+          height="40"
+          class="mr-4"
+        />
+        
+        <v-spacer />
+        
+        <div class="d-flex align-center">
+          <v-select
+            v-model="i18nStore.currentLanguage"
+            :items="i18nStore.supportedLanguages"
+            item-title="name"
+            item-value="code"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="min-width: 200px"
+            @update:model-value="i18nStore.changeLanguage"
+            class="mr-2"
+          >
+            <template #selection="{ item }">
+              {{ item.raw.name.replace(/ \(.*/, '') }}
+            </template>
+          </v-select>
+        </div>
+      </div>
+    </v-app-bar>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+    <v-main>
+      <v-container>
+        <!-- Alert -->
+        <v-alert
+          v-if="firmwareStore.alertMessage"
+          type="error"
+          dismissible
+          @click:close="firmwareStore.clearAlert"
+          class="mb-4"
+        >
+          {{ firmwareStore.alertMessage }}
+        </v-alert>
 
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+        <FirmwareSelector />
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
-</style>
