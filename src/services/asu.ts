@@ -12,6 +12,18 @@ export interface AsuBuildRequest {
   defaults?: string
   repositories?: { [name: string]: string }
   repository_keys?: string[]
+  // Module support
+  modules?: {
+    source_id: string
+    url: string
+    ref: string
+    resolved_sha: string
+    selected_modules: {
+      module_id: string
+      parameters: { [key: string]: string }
+      user_downloads: { [key: string]: string }
+    }[]
+  }[]
 }
 
 export interface AsuBuildResponse {
@@ -32,6 +44,7 @@ export interface AsuBuildResponse {
   build_cmd?: string[]
   bin_dir?: string
   imagebuilder_status?: string
+  queue_position?: number
 }
 
 export interface AsuStatusResponse extends AsuBuildResponse {

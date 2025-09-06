@@ -30,6 +30,7 @@ export interface ProfilesResponse {
   version_number: string
   version_code: string
   build_at: string
+  arch_packages: string
   profiles: {
     [key: string]: {
       id: string

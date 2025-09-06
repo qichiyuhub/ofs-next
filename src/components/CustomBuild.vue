@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, onMounted } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
+import { useModuleStore } from '@/stores/module'
+import { usePackageStore } from '@/stores/package'
 import { AsuService, type AsuBuildRequest, type AsuBuildResponse } from '@/services/asu'
 import { config } from '@/config'
+import ModuleSource from './ModuleSource.vue'
+import ModuleSelector from './ModuleSelector.vue'
+import PackageManager from './PackageManager.vue'
 
 // Define emits
 const emit = defineEmits<{
@@ -15,10 +20,11 @@ const emit = defineEmits<{
 
 const i18n = useI18nStore()
 const firmware = useFirmwareStore()
+const moduleStore = useModuleStore()
+const packageStore = usePackageStore()
 const asuService = new AsuService()
 
 // Form data
-const packagesText = ref('')
 const uciDefaultsContent = ref('')
 const rootfsSizeMb = ref<number | null>(null)
 const repositories = ref<{ name: string; url: string }[]>([])
@@ -31,22 +37,33 @@ const isBuilding = ref(false)
 const buildError = ref('')
 const pollInterval = ref<number | null>(null)
 
+// Validation error dialog
+const showValidationErrorDialog = ref(false)
+const validationErrors = ref<{ [moduleKey: string]: string[] }>({})
+
 // Computed
 const isAsuAvailable = computed(() => asuService.isAvailable())
 
-const packagesList = computed(() => {
-  if (!packagesText.value) return []
-  return asuService.parsePackages(packagesText.value)
-})
 
 const finalPackages = computed(() => {
   if (!firmware.selectedProfile) return []
   
+  // Collect packages from package manager (includes both selected and removed packages with - prefix)
+  const managerPackages = packageStore.buildPackagesList
+  
+  // Collect packages from selected modules
+  const modulePackages: string[] = []
+  for (const { module } of moduleStore.selectedModules) {
+    if (module.definition.packages) {
+      modulePackages.push(...module.definition.packages)
+    }
+  }
+  
   return asuService.buildPackagesList(
     firmware.selectedProfile.device_packages || [],
     firmware.selectedProfile.default_packages || [],
-    packagesList.value,
-    config.asu_extra_packages || []
+    [], // No manual packages text input anymore
+    [...(config.asu_extra_packages || []), ...modulePackages, ...managerPackages]
   )
 })
 
@@ -84,9 +101,73 @@ watch(() => firmware.selectedDevice, () => {
   stopPolling()
 })
 
+// Helper functions
+function getModuleDisplayName(moduleKey: string): string {
+  const [sourceId, moduleId] = moduleKey.split(':')
+  const source = moduleStore.sources.find(s => s.id === sourceId)
+  const module = source?.modules.find(m => m.id === moduleId)
+  
+  if (module && source) {
+    return `${module.definition.name} (来源: ${source.name})`
+  }
+  
+  return moduleKey
+}
+
+function closeValidationErrorDialog() {
+  showValidationErrorDialog.value = false
+  validationErrors.value = {}
+}
+
+// Get current custom build configuration for saving
+function getCurrentCustomBuildConfig() {
+  return {
+    packages: packageStore.buildPackagesList,
+    uciDefaults: uciDefaultsContent.value,
+    rootfsSizeMb: rootfsSizeMb.value,
+    repositories: repositories.value.filter(repo => repo.name && repo.url),
+    repositoryKeys: repositoryKeys.value.filter(key => key.trim())
+  }
+}
+
+// Apply custom build configuration from loaded config
+function applyCustomBuildConfig(customBuild: any) {
+  if (customBuild.packages) {
+    packageStore.setSelectedPackages(customBuild.packages)
+  }
+  if (customBuild.uciDefaults) {
+    uciDefaultsContent.value = customBuild.uciDefaults
+  }
+  if (customBuild.rootfsSizeMb) {
+    rootfsSizeMb.value = customBuild.rootfsSizeMb
+  }
+  if (customBuild.repositories) {
+    repositories.value = [...customBuild.repositories]
+  }
+  if (customBuild.repositoryKeys) {
+    repositoryKeys.value = [...customBuild.repositoryKeys]
+  }
+}
+
+// Note: Configuration management is now handled at the App level
+
+// Expose methods for configuration management
+defineExpose({
+  getCurrentCustomBuildConfig,
+  applyCustomBuildConfig
+})
+
 // Methods
 async function requestBuild() {
   if (!firmware.selectedDevice || !firmware.selectedProfile) return
+  
+  // Validate all selected modules first
+  const validationResult = moduleStore.validateAllSelections()
+  if (!validationResult.isValid) {
+    validationErrors.value = validationResult.errors
+    showValidationErrorDialog.value = true
+    return
+  }
   
   isBuilding.value = true
   buildError.value = ''
@@ -108,6 +189,32 @@ async function requestBuild() {
       .map(key => key.trim())
       .filter(key => key.length > 0)
 
+    // Prepare module data if any modules are selected
+    let modules = undefined
+    if (moduleStore.selectedModules.length > 0) {
+      const moduleData = new Map<string, any>()
+      
+      for (const { module, source, selection } of moduleStore.selectedModules) {
+        if (!moduleData.has(source.id)) {
+          moduleData.set(source.id, {
+            source_id: source.id,
+            url: source.url,
+            ref: source.ref,
+            resolved_sha: source.resolvedSHA,
+            selected_modules: []
+          })
+        }
+        
+        moduleData.get(source.id)!.selected_modules.push({
+          module_id: module.id,
+          parameters: selection.parameters,
+          user_downloads: selection.userDownloads
+        })
+      }
+      
+      modules = Array.from(moduleData.values())
+    }
+
     const request: AsuBuildRequest = {
       target: firmware.selectedDevice.target,
       profile: firmware.selectedDevice.id,
@@ -116,7 +223,8 @@ async function requestBuild() {
       defaults: uciDefaultsContent.value || undefined,
       rootfs_size_mb: rootfsSizeMb.value || undefined,
       repositories: Object.keys(repoMap).length > 0 ? repoMap : undefined,
-      repository_keys: repoKeys.length > 0 ? repoKeys : undefined
+      repository_keys: repoKeys.length > 0 ? repoKeys : undefined,
+      modules
     }
     
     const response = await asuService.requestBuild(request)
@@ -218,17 +326,6 @@ function removeRepositoryKey(index: number) {
   repositoryKeys.value.splice(index, 1)
 }
 
-// Initialize packages with device packages
-watch(() => firmware.selectedProfile, (profile) => {
-  if (profile && !packagesText.value) {
-    const allPackages = [
-      ...(profile.device_packages || []),
-      ...(profile.default_packages || []),
-      ...(config.asu_extra_packages || [])
-    ]
-    packagesText.value = allPackages.join(' ')
-  }
-})
 
 // Cleanup
 onUnmounted(() => {
@@ -242,11 +339,19 @@ onUnmounted(() => {
       <v-expansion-panel-title>
         <div class="d-flex align-center">
           <v-icon class="mr-3">mdi-cog</v-icon>
-          <span>{{ i18n.t('tr-customize', '自定义预安装软件包和/或首次启动脚本') }}</span>
+          <span>{{ i18n.t('tr-customize', '自定义软件包管理和首次启动脚本') }}</span>
         </div>
       </v-expansion-panel-title>
       
       <v-expansion-panel-text>
+        <!-- Module Management -->
+        <div class="mb-6">
+          <ModuleSource class="mb-4" />
+          <ModuleSelector v-if="moduleStore.sources.length > 0" />
+        </div>
+
+        <v-divider class="my-6" />
+
         <!-- Build Status -->
         <v-alert
           v-if="buildStatus"
@@ -327,18 +432,11 @@ onUnmounted(() => {
         </v-alert>
 
         <v-row>
-          <!-- Installed Packages -->
+          <!-- Package Manager -->
           <v-col cols="12">
-            <h4 class="text-h6 mb-3">{{ i18n.t('tr-packages', '预安装的软件包') }}</h4>
-            <v-textarea
-              v-model="packagesText"
-              rows="10"
-              variant="outlined"
-              placeholder="输入软件包名称，用空格或换行分隔"
-              hint="使用 '-' 前缀来移除软件包，例如: -ppp -ppp-mod-pppoe"
-              persistent-hint
-            />
+            <PackageManager class="mb-6" />
           </v-col>
+
 
           <!-- UCI Defaults Script -->
           <v-col cols="12">
@@ -518,6 +616,68 @@ onUnmounted(() => {
       </v-expansion-panel-text>
     </v-expansion-panel>
   </v-expansion-panels>
+
+  <!-- Validation Error Dialog -->
+  <v-dialog v-model="showValidationErrorDialog" max-width="600px" scrollable>
+    <v-card>
+      <v-card-title class="d-flex align-center">
+        <v-icon icon="mdi-alert-circle" color="error" class="mr-2" />
+        模块参数验证失败
+      </v-card-title>
+
+      <v-divider />
+
+      <v-card-text class="pt-4">
+        <v-alert type="error" variant="tonal" class="mb-4">
+          <strong>无法开始构建，以下模块存在参数错误：</strong>
+        </v-alert>
+
+        <div v-for="(errors, moduleKey) in validationErrors" :key="moduleKey" class="mb-4">
+          <div class="d-flex align-center mb-2">
+            <v-icon icon="mdi-puzzle" size="small" color="primary" class="mr-2" />
+            <strong>{{ getModuleDisplayName(String(moduleKey)) }}</strong>
+          </div>
+          
+          <v-list density="compact" class="bg-error-container/10 rounded">
+            <v-list-item
+              v-for="(error, index) in errors"
+              :key="index"
+              class="text-error"
+            >
+              <template #prepend>
+                <v-icon icon="mdi-circle-small" size="small" />
+              </template>
+              <v-list-item-title class="text-body-2">{{ error }}</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </div>
+
+        <v-alert type="info" variant="tonal" class="mt-4">
+          <div class="text-body-2">
+            <strong>解决方法：</strong>
+            <ul class="mt-2">
+              <li>检查标红的必填参数是否已填写</li>
+              <li>确保参数格式符合要求（如IP地址、URL等）</li>
+              <li>为用户自定义下载提供有效的URL</li>
+              <li>点击模块的"配置参数"按钮进行修正</li>
+            </ul>
+          </div>
+        </v-alert>
+      </v-card-text>
+
+      <v-card-actions>
+        <v-spacer />
+        <v-btn @click="closeValidationErrorDialog">关闭</v-btn>
+        <v-btn 
+          color="primary" 
+          variant="outlined"
+          @click="closeValidationErrorDialog"
+        >
+          去修正参数
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>

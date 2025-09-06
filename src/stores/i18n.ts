@@ -100,7 +100,7 @@ export const useI18nStore = defineStore('i18n', () => {
 
   // Auto-detect language
   function detectLanguage() {
-    const long = (navigator.language || navigator.userLanguage).toLowerCase()
+    const long = (navigator.language || (navigator as any).userLanguage || 'en').toLowerCase()
     const short = long.split('-')[0]
     
     if (supportedLanguages.find(l => l.code === long)) {
