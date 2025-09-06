@@ -8,6 +8,7 @@ import { usePackageStore } from '@/stores/package'
 import { config } from '@/config'
 import FirmwareSelector from '@/components/FirmwareSelector.vue'
 import ConfigurationManager from '@/components/ConfigurationManager.vue'
+import type { SavedConfiguration } from '@/types/config'
 
 const i18nStore = useI18nStore()
 const firmwareStore = useFirmwareStore()
@@ -35,7 +36,7 @@ function getAllAppState() {
   }
 }
 
-function applyAppState(config: any) {
+function applyAppState(config: SavedConfiguration) {
   // Apply custom build configuration directly via stores
   if (config.customBuild) {
     // Apply package selections directly to package store

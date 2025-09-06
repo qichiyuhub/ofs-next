@@ -13,6 +13,28 @@ import type {
   ExportOptions 
 } from '@/types/config'
 
+// Helper function to wait for a condition with reactive state
+function waitForCondition(conditionFn: () => boolean, timeout = 5000): Promise<boolean> {
+  return new Promise(resolve => {
+    if (conditionFn()) {
+      resolve(true)
+      return
+    }
+    
+    const interval = setInterval(() => {
+      if (conditionFn()) {
+        clearInterval(interval)
+        resolve(true)
+      }
+    }, 100)
+    
+    setTimeout(() => {
+      clearInterval(interval)
+      resolve(false)
+    }, timeout)
+  })
+}
+
 export const useConfigStore = defineStore('config', () => {
   // State
   const savedConfigurations = ref<ConfigurationSummary[]>([])
@@ -43,9 +65,9 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   // Global reference to get all current application state for configuration
-  let getAllAppState: (() => any) | null = null
+  let getAllAppState: (() => { customBuild: unknown }) | null = null
   
-  function setAppStateGetter(getter: () => any) {
+  function setAppStateGetter(getter: () => { customBuild: unknown }) {
     getAllAppState = getter
   }
 
@@ -121,9 +143,9 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   // Function to apply configuration to application
-  let applyAppState: ((config: any) => void) | null = null
+  let applyAppState: ((config: SavedConfiguration) => void) | null = null
   
-  function setAppStateApplier(applier: (config: any) => void) {
+  function setAppStateApplier(applier: (config: SavedConfiguration) => void) {
     applyAppState = applier
   }
 
@@ -141,15 +163,12 @@ export const useConfigStore = defineStore('config', () => {
       // Apply device configuration
       await firmwareStore.changeVersion(config.device.version)
       
-      // Wait for devices to actually load with proper retry mechanism
-      let retries = 0
-      const maxRetries = 50 // 5 seconds max wait
-      while (Object.keys(firmwareStore.devices).length === 0 && retries < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        retries++
-      }
+      // Wait for devices to load
+      const devicesLoaded = await waitForCondition(
+        () => Object.keys(firmwareStore.devices).length > 0
+      )
 
-      if (Object.keys(firmwareStore.devices).length === 0) {
+      if (!devicesLoaded) {
         error.value = '设备列表加载失败，请重试'
         return false
       }
@@ -159,12 +178,9 @@ export const useConfigStore = defineStore('config', () => {
         await firmwareStore.selectDevice(config.device.model)
         
         // Wait for profile to be fully loaded
-        let profileRetries = 0
-        const maxProfileRetries = 50
-        while (!firmwareStore.selectedProfile && profileRetries < maxProfileRetries) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          profileRetries++
-        }
+        await waitForCondition(
+          () => !!firmwareStore.selectedProfile
+        )
         
         // Load package feeds if not loaded and profile is available
         if (packageStore.totalPackages === 0 && firmwareStore.selectedProfile && firmwareStore.selectedProfile.arch_packages) {
@@ -229,15 +245,11 @@ export const useConfigStore = defineStore('config', () => {
 
       // Apply full configuration to application (wait for package feeds to load)
       if (applyAppState) {
-        // Wait for package feeds to finish loading before applying package selections
-        let retries = 0
-        const maxRetries = 100 // 10 seconds max wait
-        
-        // Wait for package loading to complete AND packages to be actually loaded
-        while ((packageStore.isLoading || packageStore.totalPackages === 0) && retries < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          retries++
-        }
+        // Wait for package loading to complete
+        await waitForCondition(
+          () => !packageStore.isLoading && packageStore.totalPackages > 0,
+          10000 // 10 seconds max wait
+        )
         
         // Apply configuration after packages are loaded
         applyAppState(config)
@@ -307,7 +319,7 @@ export const useConfigStore = defineStore('config', () => {
         loadSavedConfigurations()
       }
       return result
-    } catch (err) {
+    } catch {
       return {
         success: false,
         message: '导入配置失败'
