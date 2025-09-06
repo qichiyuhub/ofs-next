@@ -63,23 +63,17 @@ async function loadPackagesForCurrentDevice() {
 }
 
 function getDeviceArchitecture(): string | null {
-  if (!firmwareStore.selectedDevice) return null
+  // Use arch_packages from selected profile if available
+  if (firmwareStore.selectedProfile?.arch_packages) {
+    return firmwareStore.selectedProfile.arch_packages
+  }
   
-  // Extract architecture from target (e.g., "x86/64" -> "x86_64")
-  const target = firmwareStore.selectedDevice.target
-  if (target.includes('x86/64')) return 'x86_64'
-  if (target.includes('x86/generic')) return 'i386_486'
-  if (target.includes('ath79/generic')) return 'mips_24kc'
-  if (target.includes('ramips/mt7621')) return 'mipsel_24kc'
-  if (target.includes('bcm27xx/bcm2708')) return 'arm_arm1176jzf-s_vfp'
-  if (target.includes('bcm27xx/bcm2709')) return 'arm_cortex-a7_neon-vfpv4'
-  if (target.includes('bcm27xx/bcm2710')) return 'aarch64_cortex-a53'
-  if (target.includes('ipq40xx/generic')) return 'arm_cortex-a7_neon-vfpv4'
-  if (target.includes('ar71xx/generic')) return 'mips_24kc'
+  // Fallback: warn if profile not available
+  if (firmwareStore.selectedDevice) {
+    console.warn(`Profile not loaded for device: ${firmwareStore.selectedDevice.title}, cannot determine architecture`)
+  }
   
-  // Default fallback - extract from target
-  const parts = target.split('/')
-  return parts.length > 1 ? parts.join('_') : target
+  return null
 }
 
 function addPackage(packageName: string) {
