@@ -10,6 +10,8 @@ export interface AsuBuildRequest {
   filesystem?: string
   rootfs_size_mb?: number
   defaults?: string
+  repositories?: { [name: string]: string }
+  repository_keys?: string[]
 }
 
 export interface AsuBuildResponse {

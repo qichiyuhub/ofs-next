@@ -20,6 +20,9 @@ const asuService = new AsuService()
 // Form data
 const packagesText = ref('')
 const uciDefaultsContent = ref('')
+const rootfsSizeMb = ref<number | null>(null)
+const repositories = ref<{ name: string; url: string }[]>([])
+const repositoryKeys = ref<string[]>([])
 const isExpanded = ref(false)
 
 // Build state
@@ -92,12 +95,28 @@ async function requestBuild() {
   emit('build-start')
   
   try {
+    // Prepare repositories
+    const repoMap: { [name: string]: string } = {}
+    repositories.value.forEach(repo => {
+      if (repo.name && repo.url) {
+        repoMap[repo.name] = repo.url
+      }
+    })
+
+    // Prepare repository keys
+    const repoKeys = repositoryKeys.value
+      .map(key => key.trim())
+      .filter(key => key.length > 0)
+
     const request: AsuBuildRequest = {
       target: firmware.selectedDevice.target,
       profile: firmware.selectedDevice.id,
       packages: finalPackages.value,
       version: firmware.selectedProfile.version_number,
-      defaults: uciDefaultsContent.value || undefined
+      defaults: uciDefaultsContent.value || undefined,
+      rootfs_size_mb: rootfsSizeMb.value || undefined,
+      repositories: Object.keys(repoMap).length > 0 ? repoMap : undefined,
+      repository_keys: repoKeys.length > 0 ? repoKeys : undefined
     }
     
     const response = await asuService.requestBuild(request)
@@ -179,6 +198,24 @@ uci set system.@system[0].hostname='OpenWrt-Custom'
 # Commit changes
 uci commit
 `
+}
+
+// Repository management methods
+function addRepository() {
+  repositories.value.push({ name: '', url: '' })
+}
+
+function removeRepository(index: number) {
+  repositories.value.splice(index, 1)
+}
+
+// Repository keys management methods
+function addRepositoryKey() {
+  repositoryKeys.value.push('')
+}
+
+function removeRepositoryKey(index: number) {
+  repositoryKeys.value.splice(index, 1)
 }
 
 // Initialize packages with device packages
@@ -323,6 +360,125 @@ onUnmounted(() => {
               hint="这个脚本将在设备首次启动时执行一次"
               persistent-hint
             />
+          </v-col>
+        </v-row>
+
+        <v-divider class="my-6" />
+
+        <!-- Advanced Configuration -->
+        <v-row>
+          <v-col cols="12">
+            <h4 class="text-h6 mb-3">高级配置</h4>
+          </v-col>
+
+          <!-- Root Filesystem Size -->
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model.number="rootfsSizeMb"
+              label="根文件系统大小 (MB)"
+              placeholder="256"
+              type="number"
+              variant="outlined"
+              hint="设置根文件系统的大小，单位为MB (可选)"
+              persistent-hint
+              :min="1"
+              :max="2048"
+              clearable
+            />
+          </v-col>
+
+          <!-- Repositories -->
+          <v-col cols="12">
+            <div class="d-flex align-center mb-3">
+              <h5 class="text-subtitle1">自定义软件源</h5>
+              <v-spacer />
+              <v-btn
+                size="small"
+                prepend-icon="mdi-plus"
+                @click="addRepository"
+              >
+                添加软件源
+              </v-btn>
+            </div>
+            
+            <div v-if="repositories.length === 0" class="text-grey text-body-2 mb-4">
+              暂无自定义软件源
+            </div>
+
+            <div v-for="(repo, index) in repositories" :key="index" class="mb-3">
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="repo.name"
+                    label="源名称"
+                    variant="outlined"
+                    density="compact"
+                    placeholder="my-repo"
+                  />
+                </v-col>
+                <v-col cols="12" md="7">
+                  <v-text-field
+                    v-model="repo.url"
+                    label="源地址"
+                    variant="outlined"
+                    density="compact"
+                    placeholder="https://downloads.example.com/packages"
+                  />
+                </v-col>
+                <v-col cols="12" md="1">
+                  <v-btn
+                    icon="mdi-delete"
+                    variant="text"
+                    color="error"
+                    @click="removeRepository(index)"
+                  />
+                </v-col>
+              </v-row>
+            </div>
+          </v-col>
+
+          <!-- Repository Keys -->
+          <v-col cols="12">
+            <div class="d-flex align-center mb-3">
+              <h5 class="text-subtitle1">软件源签名密钥</h5>
+              <v-spacer />
+              <v-btn
+                size="small"
+                prepend-icon="mdi-plus"
+                @click="addRepositoryKey"
+              >
+                添加密钥
+              </v-btn>
+            </div>
+            
+            <div v-if="repositoryKeys.length === 0" class="text-grey text-body-2 mb-4">
+              暂无签名密钥
+            </div>
+
+            <div v-for="(key, index) in repositoryKeys" :key="index" class="mb-3">
+              <v-row>
+                <v-col cols="12" md="11">
+                  <v-textarea
+                    v-model="repositoryKeys[index]"
+                    label="usign 公钥"
+                    variant="outlined"
+                    rows="3"
+                    density="compact"
+                    placeholder="untrusted comment: OpenWrt usign key&#10;RWQKvaZaSStIhx4t06ISyV42CIpK7niKfR+Yro/WHiKLa122SEh2j3Z4"
+                    hint="用于验证自定义软件源的 usign 公钥"
+                    persistent-hint
+                  />
+                </v-col>
+                <v-col cols="12" md="1">
+                  <v-btn
+                    icon="mdi-delete"
+                    variant="text"
+                    color="error"
+                    @click="removeRepositoryKey(index)"
+                  />
+                </v-col>
+              </v-row>
+            </div>
           </v-col>
         </v-row>
 
