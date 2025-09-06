@@ -488,12 +488,13 @@ onUnmounted(() => {
             软件包摘要 ({{ finalPackages.length }} 个)
           </v-card-title>
           <v-card-text>
-            <div class="d-flex flex-wrap gap-1">
+            <div class="d-flex flex-wrap">
               <v-chip
                 v-for="pkg in finalPackages"
                 :key="pkg"
                 size="small"
                 variant="outlined"
+                class="ma-1"
               >
                 {{ pkg }}
               </v-chip>
