@@ -80,7 +80,7 @@ onMounted(async () => {
 
 <template>
   <v-app>
-    <v-app-bar elevation="2" color="primary" theme="dark">
+    <v-app-bar elevation="2" color="primary">
       <div class="d-flex align-center w-100">
         <a :href="config.homepage_url" target="_blank" rel="noopener noreferrer">
           <img
