@@ -165,6 +165,10 @@ export const usePackageStore = defineStore('package', () => {
   function clearAllPackages(): void {
     selectedPackages.value.clear()
     removedPackages.value.clear()
+    // Also clear loaded package data to force reload for new device
+    allPackages.value = []
+    feeds.value = []
+    error.value = ''
   }
 
   function setSelectedPackages(packages: string[]): void {
