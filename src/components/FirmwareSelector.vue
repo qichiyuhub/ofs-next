@@ -88,10 +88,7 @@ const sortedVersions = computed(() => {
           :loading="firmware.isLoadingVersions"
         >
           <template #item="{ item, props }">
-            <v-list-item v-bind="props">
-              <v-list-item-title>
-                {{ item.raw === 'latest' ? i18n.t('tr-latest-releases', '最新') : item.raw }}
-              </v-list-item-title>
+            <v-list-item v-bind="props" :title="item.raw === 'latest' ? i18n.t('tr-latest-releases', '最新') : item.raw">
             </v-list-item>
           </template>
           <template #selection="{ item }">
