@@ -65,7 +65,7 @@ const sortedVersions = computed(() => {
     <v-row class="mb-6">
       <v-col cols="12">
         <h1 class="text-h4 mb-3">
-          {{ i18n.t('tr-load', `下载适用于您设备的 ${config.brand_name} 固件`) }}
+          {{ i18n.t('tr-load', 'Download OpenWrt firmware for your device').replace('OpenWrt', config.brand_name) }}
         </h1>
         <p class="text-body-1 text-medium-emphasis">
           {{ i18n.t('tr-message', '输入设备的名称或型号，然后选择一个稳定或快照版本。') }}

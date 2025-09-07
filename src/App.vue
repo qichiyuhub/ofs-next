@@ -2,7 +2,6 @@
 import { onMounted, ref } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
-import { useModuleStore } from '@/stores/module'
 import { useConfigStore } from '@/stores/config'
 import { usePackageStore } from '@/stores/package'
 import { config } from '@/config'
@@ -12,7 +11,6 @@ import type { SavedConfiguration } from '@/types/config'
 
 const i18nStore = useI18nStore()
 const firmwareStore = useFirmwareStore()
-const moduleStore = useModuleStore()
 const configStore = useConfigStore()
 const packageStore = usePackageStore()
 
@@ -20,7 +18,7 @@ const packageStore = usePackageStore()
 const showConfigManager = ref(false)
 
 // Store reference to CustomBuild component for accessing form data
-const customBuildRef = ref<any>(null)
+const customBuildRef = ref<InstanceType<typeof FirmwareSelector> | null>(null)
 
 // Global app state management for configuration system
 function getAllAppState() {

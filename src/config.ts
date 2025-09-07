@@ -33,10 +33,10 @@ export interface Config {
 
 export const config: Config = {
   // Brand name
-  brand_name: "OpenWrt",
+  brand_name: "ImmortalWrt",
 
   // Homepage URL (for logo link)
-  homepage_url: "https://openwrt.org",
+  homepage_url: "https://immortalwrt.org/",
 
   // Show help text for images
   show_help: true,
@@ -48,7 +48,7 @@ export const config: Config = {
   default_version: "23.05.4",
 
   // Image download URL (e.g. "https://downloads.openwrt.org")
-  image_url: "https://downloads.openwrt.org",
+  image_url: "https://downloads.immortalwrt.org",
 
   // Insert snapshot versions (optional)
   show_snapshots: true,
@@ -57,7 +57,7 @@ export const config: Config = {
   info_url: "https://openwrt.org/start?do=search&id=toh&q={title} @toh",
 
   // Attended Sysupgrade Server support (optional)
-  asu_url: "https://sysupgrade.openwrt.org",
+  asu_url: "https://asu-2.kyarucloud.moe",
   asu_extra_packages: ["luci"],
 
   // Enable/disable module management feature (optional)

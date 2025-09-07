@@ -4,6 +4,10 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import vuetify from './plugins/vuetify'
+import { config } from './config'
+
+// Set dynamic page title
+document.title = `${config.brand_name} Firmware Selector`
 
 const app = createApp(App)
 

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
+import { config } from '@/config'
 import type { DeviceImage } from '@/services/api'
 import type { AsuBuildResponse } from '@/services/asu'
 
@@ -126,8 +127,8 @@ function getHelpTextClass(image: DeviceImage): string {
 
 function getHelpText(helpClass: string): string {
   const helpTexts: Record<string, string> = {
-    'tr-sysupgrade-help': i18n.t('tr-sysupgrade-help', '使用 Sysupgrade 映像以更新现有运行 OpenWrt 的设备。该映像可以在 LuCI 界面或终端中使用。'),
-    'tr-factory-help': i18n.t('tr-factory-help', '首次刷机时，使用 Factory 映像以刷入 OpenWrt。通常您可以在原厂固件的 Web 界面中完成此操作。'),
+    'tr-sysupgrade-help': i18n.t('tr-sysupgrade-help', '使用 Sysupgrade 映像以更新现有运行 OpenWrt 的设备。该映像可以在 LuCI 界面或终端中使用。').replace('OpenWrt', config.brand_name),
+    'tr-factory-help': i18n.t('tr-factory-help', '首次刷机时，使用 Factory 映像以刷入 OpenWrt。通常您可以在原厂固件的 Web 界面中完成此操作。').replace('OpenWrt', config.brand_name),
     'tr-initramfs-help': i18n.t('tr-initramfs-help', '集成最小文件系统的 Linux 内核。适用于首次安装或故障恢复。'),
     'tr-kernel-help': i18n.t('tr-kernel-help', '独立的 Linux 内核映像。'),
     'tr-rootfs-help': i18n.t('tr-rootfs-help', '独立的 rootfs 映像。'),
