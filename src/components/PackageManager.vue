@@ -196,7 +196,7 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
                     icon="mdi-information-outline"
                     variant="text"
                     size="small"
-                    @click="showPackageDetails(packageStore.getPackageInfo(packageName))"
+                    @click="showPackageDetails(packageStore.getPackageInfo(packageName) || null)"
                     v-if="packageStore.getPackageInfo(packageName)"
                   />
                   <v-btn
@@ -238,7 +238,7 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
                     icon="mdi-information-outline"
                     variant="text"
                     size="small"
-                    @click="showPackageDetails(packageStore.getPackageInfo(packageName))"
+                    @click="showPackageDetails(packageStore.getPackageInfo(packageName) || null)"
                     v-if="packageStore.getPackageInfo(packageName)"
                   />
                   <v-btn
@@ -541,7 +541,7 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
             v-if="packageStore.getPackageStatus(selectedPackageDetail.name) === 'none'"
             color="error"
             prepend-icon="mdi-delete-forever"
-            @click="markForRemoval(selectedPackageDetail.name)"
+            @click="packageStore.addRemovedPackage(selectedPackageDetail.name)"
           >
             标记删除
           </v-btn>
@@ -557,7 +557,7 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
             v-if="packageStore.getPackageStatus(selectedPackageDetail.name) === 'selected'"
             color="error"
             prepend-icon="mdi-delete-forever"
-            @click="markForRemoval(selectedPackageDetail.name)"
+            @click="packageStore.addRemovedPackage(selectedPackageDetail.name)"
           >
             标记删除
           </v-btn>

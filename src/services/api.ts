@@ -13,6 +13,7 @@ export interface DeviceProfile {
   version_code: string
   build_at: string
   default_packages: string[]
+  arch_packages?: string
   manifest?: any
 }
 

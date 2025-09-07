@@ -29,8 +29,8 @@ export interface SavedConfiguration {
     repositoryKeys: string[]
   }
   
-  // Module configuration
-  modules: {
+  // Module configuration (optional - only if module management is enabled)
+  modules?: {
     sources: Array<{
       id: string
       name: string

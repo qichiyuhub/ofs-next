@@ -209,7 +209,6 @@ export const usePackageStore = defineStore('package', () => {
     selectedPackages.value.clear() // Clear explicitly added packages
     removedPackages.value.clear()  // Clear explicitly removed default packages
     // Also clear loaded package data to force reload for new device
-    allPackages.value = []
     feeds.value = []
     error.value = ''
   }
@@ -235,16 +234,14 @@ export const usePackageStore = defineStore('package', () => {
       })
     }
 
-    // Update allPackages with the new packages
-    allPackages.value = feeds.value.flatMap(feed => feed.packages || [])
+    // allPackages is computed from feeds, no need to update manually
   }
 
   function removeCustomFeedPackages(feedName: string): void {
     const feedIndex = feeds.value.findIndex(feed => feed.name === feedName)
     if (feedIndex >= 0) {
       feeds.value.splice(feedIndex, 1)
-      // Update allPackages after removing the feed
-      allPackages.value = feeds.value.flatMap(feed => feed.packages || [])
+      // allPackages is computed from feeds, no need to update manually
     }
   }
 

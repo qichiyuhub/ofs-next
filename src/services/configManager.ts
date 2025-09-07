@@ -65,7 +65,7 @@ export class ConfigurationManager {
         description: config.description,
         deviceModel: config.device.model,
         version: config.device.version,
-        moduleCount: config.modules.selections.length,
+        moduleCount: config.modules?.selections.length || 0,
         packageCount: config.customBuild.packages.length,
         createdAt: new Date(config.createdAt),
         updatedAt: new Date(config.updatedAt)

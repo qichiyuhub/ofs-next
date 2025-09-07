@@ -83,7 +83,7 @@ export const useConfigStore = defineStore('config', () => {
 
     try {
       // Create configuration object
-      const config: SavedConfiguration = {
+      const configData: SavedConfiguration = {
         id: currentConfigId.value || `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name,
         description,
@@ -100,7 +100,13 @@ export const useConfigStore = defineStore('config', () => {
         },
 
         // Custom build configuration  
-        customBuild: getAllAppState ? getAllAppState().customBuild : {
+        customBuild: getAllAppState ? getAllAppState().customBuild as {
+          packages: string[];
+          uciDefaults?: string;
+          rootfsSizeMb?: number;
+          repositories: { name: string; url: string; }[];
+          repositoryKeys: string[];
+        } : {
           packages: [],
           repositories: [],
           repositoryKeys: []
@@ -126,10 +132,10 @@ export const useConfigStore = defineStore('config', () => {
         } : {})
       }
 
-      const success = configManager.saveConfiguration(config)
+      const success = configManager.saveConfiguration(configData)
       if (success) {
-        currentConfigId.value = config.id
-        currentConfigName.value = config.name
+        currentConfigId.value = configData.id
+        currentConfigName.value = configData.name
         loadSavedConfigurations()
         return true
       } else {
@@ -157,14 +163,14 @@ export const useConfigStore = defineStore('config', () => {
     error.value = ''
 
     try {
-      const config = configManager.loadConfiguration(id)
-      if (!config) {
+      const savedConfig = configManager.loadConfiguration(id)
+      if (!savedConfig) {
         error.value = '配置不存在'
         return false
       }
 
       // Apply device configuration
-      await firmwareStore.changeVersion(config.device.version)
+      await firmwareStore.changeVersion(savedConfig.device.version)
       
       // Wait for devices to load
       const devicesLoaded = await waitForCondition(
@@ -176,9 +182,9 @@ export const useConfigStore = defineStore('config', () => {
         return false
       }
 
-      const device = firmwareStore.devices[config.device.model]
+      const device = firmwareStore.devices[savedConfig.device.model]
       if (device) {
-        await firmwareStore.selectDevice(config.device.model)
+        await firmwareStore.selectDevice(savedConfig.device.model)
         
         // Wait for profile to be fully loaded
         await waitForCondition(
@@ -189,22 +195,22 @@ export const useConfigStore = defineStore('config', () => {
         if (packageStore.totalPackages === 0 && firmwareStore.selectedProfile && firmwareStore.selectedProfile.arch_packages) {
           // Use arch_packages from profile data
           await packageStore.loadPackagesForDevice(
-            config.device.version,
+            savedConfig.device.version,
             firmwareStore.selectedProfile.arch_packages,
-            config.device.target
+            savedConfig.device.target
           )
         }
       } else {
-        error.value = `未找到设备: ${config.device.model}，可能版本不匹配或设备已下线`
+        error.value = `未找到设备: ${savedConfig.device.model}，可能版本不匹配或设备已下线`
         return false
       }
 
       // Apply module sources (only if module management is enabled and config has modules)
-      if (config.enable_module_management && configData.modules) {
+      if (config.enable_module_management && savedConfig.modules) {
         moduleStore.sources = []
         moduleStore.selections = []
         
-        for (const sourceConfig of configData.modules.sources) {
+        for (const sourceConfig of savedConfig.modules.sources) {
           try {
             await moduleStore.addModuleSource(
               sourceConfig.url,
@@ -219,7 +225,7 @@ export const useConfigStore = defineStore('config', () => {
         // Wait for sources to load, then apply selections
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        for (const selectionConfig of configData.modules.selections) {
+        for (const selectionConfig of savedConfig.modules.selections) {
           try {
             moduleStore.selectModule(selectionConfig.sourceId, selectionConfig.moduleId)
           
@@ -229,7 +235,7 @@ export const useConfigStore = defineStore('config', () => {
               selectionConfig.sourceId,
               selectionConfig.moduleId,
               key,
-              value
+              value as string
             )
           }
 
@@ -239,7 +245,7 @@ export const useConfigStore = defineStore('config', () => {
               selectionConfig.sourceId,
               selectionConfig.moduleId,
               name,
-              url
+              url as string
             )
           }
           } catch (err) {
@@ -257,14 +263,14 @@ export const useConfigStore = defineStore('config', () => {
         )
         
         // Apply configuration after packages are loaded
-        applyAppState(config)
+        applyAppState(savedConfig)
       }
 
-      currentConfigId.value = config.id
-      currentConfigName.value = config.name
+      currentConfigId.value = savedConfig.id
+      currentConfigName.value = savedConfig.name
       
       // Set as last used configuration
-      configManager.setLastUsedConfigId(config.id)
+      configManager.setLastUsedConfigId(savedConfig.id)
 
       return true
     } catch (err) {

@@ -1,6 +1,6 @@
 {
-  "name": "ofs-next3",
-  "version": "0.0.0",
+  "name": "ofs-next",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": {
