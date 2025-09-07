@@ -126,7 +126,7 @@ function closeValidationErrorDialog() {
 // Get current custom build configuration for saving
 function getCurrentCustomBuildConfig() {
   return {
-    packages: packageStore.buildPackagesList,
+    packageConfiguration: packageStore.getPackageConfiguration(),
     uciDefaults: uciDefaultsContent.value,
     rootfsSizeMb: rootfsSizeMb.value,
     repositories: repositories.value.filter(repo => repo.name && repo.url),
@@ -136,8 +136,8 @@ function getCurrentCustomBuildConfig() {
 
 // Apply custom build configuration from loaded config
 function applyCustomBuildConfig(customBuild: any) {
-  if (customBuild.packages) {
-    packageStore.setSelectedPackages(customBuild.packages)
+  if (customBuild.packageConfiguration) {
+    packageStore.setPackageConfiguration(customBuild.packageConfiguration)
   }
   if (customBuild.uciDefaults) {
     uciDefaultsContent.value = customBuild.uciDefaults

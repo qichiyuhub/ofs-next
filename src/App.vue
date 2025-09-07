@@ -20,12 +20,12 @@ const showConfigManager = ref(false)
 // Store reference to CustomBuild component for accessing form data  
 const customBuildRef = ref<{
   getCurrentCustomBuildConfig?: () => {
-    packages: string[];
+    packageConfiguration: { addedPackages: string[]; removedPackages: string[] };
     repositories: Array<{ name: string; url: string; }>;
     repositoryKeys: string[];
   };
   applyCustomBuildConfig?: (config: {
-    packages: string[];
+    packageConfiguration: { addedPackages: string[]; removedPackages: string[] };
     repositories: Array<{ name: string; url: string; }>;
     repositoryKeys: string[];
   }) => void;
@@ -35,7 +35,8 @@ const customBuildRef = ref<{
 function getAllAppState() {
   // Get current CustomBuild form data if available
   const customBuildData = customBuildRef.value?.getCurrentCustomBuildConfig?.() || {
-    packages: packageStore.buildPackagesList || [], // Directly access package store
+    // 使用新的配置结构，只保存用户的增量操作
+    packageConfiguration: packageStore.getPackageConfiguration(),
     repositories: [],
     repositoryKeys: []
   }
@@ -48,9 +49,9 @@ function getAllAppState() {
 function applyAppState(config: SavedConfiguration) {
   // Apply custom build configuration directly via stores
   if (config.customBuild) {
-    // Apply package selections directly to package store
-    if (config.customBuild.packages) {
-      packageStore.setSelectedPackages(config.customBuild.packages)
+    // 使用新的配置结构
+    if (config.customBuild.packageConfiguration) {
+      packageStore.setPackageConfiguration(config.customBuild.packageConfiguration)
     }
     
     // If CustomBuild component is available, also apply other settings

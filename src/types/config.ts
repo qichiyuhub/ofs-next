@@ -19,7 +19,10 @@ export interface SavedConfiguration {
   
   // Custom build configuration
   customBuild: {
-    packages: string[]
+    packageConfiguration: {
+      addedPackages: string[]
+      removedPackages: string[]
+    }
     uciDefaults?: string
     rootfsSizeMb?: number
     repositories: Array<{

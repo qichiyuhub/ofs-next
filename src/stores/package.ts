@@ -246,8 +246,29 @@ export const usePackageStore = defineStore('package', () => {
   }
 
   function setSelectedPackages(packages: string[]): void {
-    selectedPackages.value = new Set(packages.filter(pkg => !pkg.startsWith('-')))
+    const defaultPackages = firmwareStore.selectedProfile?.default_packages || []
+    
+    // 只将非默认包添加到 selectedPackages
+    selectedPackages.value = new Set(packages.filter(pkg => 
+      !pkg.startsWith('-') && !defaultPackages.includes(pkg)
+    ))
+    
+    // 处理被移除的默认包
     removedPackages.value = new Set(packages.filter(pkg => pkg.startsWith('-')).map(pkg => pkg.substring(1)))
+  }
+
+  // 新增：设置用户包配置（更清晰的API）
+  function setPackageConfiguration(config: { addedPackages: string[]; removedPackages: string[] }): void {
+    selectedPackages.value = new Set(config.addedPackages)
+    removedPackages.value = new Set(config.removedPackages)
+  }
+
+  // 新增：获取用户包配置（用于导出）
+  function getPackageConfiguration(): { addedPackages: string[]; removedPackages: string[] } {
+    return {
+      addedPackages: Array.from(selectedPackages.value),
+      removedPackages: Array.from(removedPackages.value)
+    }
   }
 
   function getPackageInfo(packageName: string): OpenWrtPackage | undefined {
@@ -373,6 +394,8 @@ export const usePackageStore = defineStore('package', () => {
     addCustomFeedPackages,
     removeCustomFeedPackages,
     setSelectedPackages,
+    setPackageConfiguration,
+    getPackageConfiguration,
     getPackageInfo,
     getDependencies,
     getDependents,

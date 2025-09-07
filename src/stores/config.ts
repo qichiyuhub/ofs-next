@@ -101,13 +101,13 @@ export const useConfigStore = defineStore('config', () => {
 
         // Custom build configuration  
         customBuild: getAllAppState ? getAllAppState().customBuild as {
-          packages: string[];
+          packageConfiguration: { addedPackages: string[]; removedPackages: string[] };
           uciDefaults?: string;
           rootfsSizeMb?: number;
           repositories: { name: string; url: string; }[];
           repositoryKeys: string[];
         } : {
-          packages: [],
+          packageConfiguration: { addedPackages: [], removedPackages: [] },
           repositories: [],
           repositoryKeys: []
         },

@@ -59,17 +59,19 @@ export class ConfigurationManager {
   getConfigurationSummaries(): ConfigurationSummary[] {
     try {
       const configs = this.getAllConfigurations()
-      return configs.map(config => ({
-        id: config.id,
-        name: config.name,
-        description: config.description,
-        deviceModel: config.device.model,
-        version: config.device.version,
-        moduleCount: config.modules?.selections.length || 0,
-        packageCount: config.customBuild.packages.length,
-        createdAt: new Date(config.createdAt),
-        updatedAt: new Date(config.updatedAt)
-      }))
+      return configs
+        .filter(config => config.customBuild.packageConfiguration) // 忽略旧格式配置
+        .map(config => ({
+          id: config.id,
+          name: config.name,
+          description: config.description,
+          deviceModel: config.device.model,
+          version: config.device.version,
+          moduleCount: config.modules?.selections.length || 0,
+          packageCount: config.customBuild.packageConfiguration.addedPackages.length + config.customBuild.packageConfiguration.removedPackages.length,
+          createdAt: new Date(config.createdAt),
+          updatedAt: new Date(config.updatedAt)
+        }))
     } catch (error) {
       console.error('Failed to get configuration summaries:', error)
       return []
