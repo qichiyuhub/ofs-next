@@ -208,6 +208,6 @@ pnpm type-check
 ## 致谢
 
 - [OpenWrt](https://openwrt.org/) - 开源路由器固件
-- [ASU](https://github.com/aparcar/asu) - 自动构建服务
+- [ASU](https://github.com/openwrt/asu) - 自动构建服务
 - [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
 - [Vuetify](https://vuetifyjs.com/) - Material Design 组件库
