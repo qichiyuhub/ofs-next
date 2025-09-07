@@ -51,11 +51,13 @@ const finalPackages = computed(() => {
   // Collect packages from package manager (includes both selected and removed packages with - prefix)
   const managerPackages = packageStore.buildPackagesList
   
-  // Collect packages from selected modules
+  // Collect packages from selected modules (if module management is enabled)
   const modulePackages: string[] = []
-  for (const { module } of moduleStore.selectedModules) {
-    if (module.definition.packages) {
-      modulePackages.push(...module.definition.packages)
+  if (config.enable_module_management) {
+    for (const { module } of moduleStore.selectedModules) {
+      if (module.definition.packages) {
+        modulePackages.push(...module.definition.packages)
+      }
     }
   }
   
@@ -161,12 +163,14 @@ defineExpose({
 async function requestBuild() {
   if (!firmware.selectedDevice || !firmware.selectedProfile) return
   
-  // Validate all selected modules first
-  const validationResult = moduleStore.validateAllSelections()
-  if (!validationResult.isValid) {
-    validationErrors.value = validationResult.errors
-    showValidationErrorDialog.value = true
-    return
+  // Validate all selected modules first (if module management is enabled)
+  if (config.enable_module_management) {
+    const validationResult = moduleStore.validateAllSelections()
+    if (!validationResult.isValid) {
+      validationErrors.value = validationResult.errors
+      showValidationErrorDialog.value = true
+      return
+    }
   }
   
   isBuilding.value = true
@@ -189,9 +193,9 @@ async function requestBuild() {
       .map(key => key.trim())
       .filter(key => key.length > 0)
 
-    // Prepare module data if any modules are selected
+    // Prepare module data if any modules are selected and module management is enabled
     let modules = undefined
-    if (moduleStore.selectedModules.length > 0) {
+    if (config.enable_module_management && moduleStore.selectedModules.length > 0) {
       const moduleData = new Map<string, any>()
       
       for (const { module, source, selection } of moduleStore.selectedModules) {
@@ -345,12 +349,12 @@ onUnmounted(() => {
       
       <v-expansion-panel-text>
         <!-- Module Management -->
-        <div class="mb-6">
+        <div v-if="config.enable_module_management" class="mb-6">
           <ModuleSource class="mb-4" />
           <ModuleSelector v-if="moduleStore.sources.length > 0" />
         </div>
 
-        <v-divider class="my-6" />
+        <v-divider v-if="config.enable_module_management" class="my-6" />
 
         <!-- Build Status -->
         <v-alert

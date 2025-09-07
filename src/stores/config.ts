@@ -6,6 +6,7 @@ import { useFirmwareStore } from './firmware'
 import { useModuleStore } from './module'
 import { usePackageStore } from './package'
 import { configManager } from '@/services/configManager'
+import { config } from '@/config'
 import type { 
   SavedConfiguration, 
   ConfigurationSummary, 
@@ -105,22 +106,24 @@ export const useConfigStore = defineStore('config', () => {
           repositoryKeys: []
         },
 
-        // Module configuration
-        modules: {
-          sources: moduleStore.sources.map(source => ({
-            id: source.id,
-            name: source.name,
-            url: source.url,
-            ref: source.ref,
-            resolvedSHA: source.resolvedSHA
-          })),
-          selections: moduleStore.selections.map(selection => ({
-            sourceId: selection.sourceId,
-            moduleId: selection.moduleId,
-            parameters: { ...selection.parameters },
-            userDownloads: { ...selection.userDownloads }
-          }))
-        }
+        // Module configuration (only if module management is enabled)
+        ...(config.enable_module_management ? {
+          modules: {
+            sources: moduleStore.sources.map(source => ({
+              id: source.id,
+              name: source.name,
+              url: source.url,
+              ref: source.ref,
+              resolvedSHA: source.resolvedSHA
+            })),
+            selections: moduleStore.selections.map(selection => ({
+              sourceId: selection.sourceId,
+              moduleId: selection.moduleId,
+              parameters: { ...selection.parameters },
+              userDownloads: { ...selection.userDownloads }
+            }))
+          }
+        } : {})
       }
 
       const success = configManager.saveConfiguration(config)
@@ -196,28 +199,29 @@ export const useConfigStore = defineStore('config', () => {
         return false
       }
 
-      // Apply module sources
-      moduleStore.sources = []
-      moduleStore.selections = []
-      
-      for (const sourceConfig of config.modules.sources) {
-        try {
-          await moduleStore.addModuleSource(
-            sourceConfig.url,
-            sourceConfig.name,
-            sourceConfig.ref
-          )
-        } catch (err) {
-          console.warn(`Failed to load module source: ${sourceConfig.name}`, err)
+      // Apply module sources (only if module management is enabled and config has modules)
+      if (config.enable_module_management && configData.modules) {
+        moduleStore.sources = []
+        moduleStore.selections = []
+        
+        for (const sourceConfig of configData.modules.sources) {
+          try {
+            await moduleStore.addModuleSource(
+              sourceConfig.url,
+              sourceConfig.name,
+              sourceConfig.ref
+            )
+          } catch (err) {
+            console.warn(`Failed to load module source: ${sourceConfig.name}`, err)
+          }
         }
-      }
 
-      // Wait for sources to load, then apply selections
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      for (const selectionConfig of config.modules.selections) {
-        try {
-          moduleStore.selectModule(selectionConfig.sourceId, selectionConfig.moduleId)
+        // Wait for sources to load, then apply selections
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        for (const selectionConfig of configData.modules.selections) {
+          try {
+            moduleStore.selectModule(selectionConfig.sourceId, selectionConfig.moduleId)
           
           // Apply parameters
           for (const [key, value] of Object.entries(selectionConfig.parameters)) {
@@ -238,8 +242,9 @@ export const useConfigStore = defineStore('config', () => {
               url
             )
           }
-        } catch (err) {
-          console.warn(`Failed to apply module selection: ${selectionConfig.moduleId}`, err)
+          } catch (err) {
+            console.warn(`Failed to apply module selection: ${selectionConfig.moduleId}`, err)
+          }
         }
       }
 
@@ -338,9 +343,11 @@ export const useConfigStore = defineStore('config', () => {
     // Clear package selections
     packageStore.clearAllPackages()
     
-    // Clear module selections
-    moduleStore.sources = []
-    moduleStore.selections = []
+    // Clear module selections (only if module management is enabled)
+    if (config.enable_module_management) {
+      moduleStore.sources = []
+      moduleStore.selections = []
+    }
     
     // Clear last used configuration when creating new one
     configManager.clearLastUsedConfigId()

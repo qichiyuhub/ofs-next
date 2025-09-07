@@ -26,6 +26,9 @@ export interface Config {
   // Attended Sysupgrade Server support (optional)
   asu_url?: string
   asu_extra_packages?: string[]
+
+  // Enable/disable module management feature (optional)
+  enable_module_management?: boolean
 }
 
 export const config: Config = {
@@ -56,4 +59,7 @@ export const config: Config = {
   // Attended Sysupgrade Server support (optional)
   asu_url: "https://sysupgrade.openwrt.org",
   asu_extra_packages: ["luci"],
+
+  // Enable/disable module management feature (optional)
+  enable_module_management: false,
 }
