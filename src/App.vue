@@ -115,7 +115,7 @@ onMounted(async () => {
     </v-app-bar>
 
     <v-main>
-      <v-container>
+      <v-container style="max-width: 1100px; margin: 0 auto;">
         <!-- Configuration Manager -->
         <div v-if="showConfigManager" class="mb-6">
           <ConfigurationManager />
