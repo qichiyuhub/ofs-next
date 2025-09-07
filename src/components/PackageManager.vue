@@ -83,11 +83,8 @@ function addPackage(packageName: string) {
 }
 
 function removePackage(packageName: string) {
-  packageStore.removePackage(packageName)
-}
-
-function markForRemoval(packageName: string) {
-  packageStore.addRemovedPackage(packageName)
+  // Use the smart toggle logic that handles both default and non-default packages
+  packageStore.togglePackage(packageName)
 }
 
 function showPackageDetails(pkg: OpenWrtPackage | null) {
@@ -203,10 +200,11 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
                     v-if="packageStore.getPackageInfo(packageName)"
                   />
                   <v-btn
-                    icon="mdi-delete"
+                    :icon="packageStore.isPackageInDefaults(packageName) ? 'mdi-delete' : 'mdi-close'"
                     variant="text"
                     size="small"
                     color="error"
+                    :title="packageStore.isPackageInDefaults(packageName) ? '从默认包列表中排除' : '取消选择'"
                     @click="removePackage(packageName)"
                   />
                 </div>
@@ -248,6 +246,7 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
                     variant="text"
                     size="small"
                     color="success"
+                    title="恢复到默认状态"
                     @click="packageStore.removeRemovedPackage(packageName)"
                   />
                 </div>
@@ -346,21 +345,29 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
                 :key="pkg.name"
                 :class="{ 
                   'bg-primary-container': packageStore.getPackageStatus(pkg.name) === 'selected',
-                  'bg-error-container': packageStore.getPackageStatus(pkg.name) === 'removed'
+                  'bg-error-container': packageStore.getPackageStatus(pkg.name) === 'removed',
+                  'bg-secondary-container': packageStore.getPackageStatus(pkg.name) === 'default'
                 }"
               >
                 <template #prepend>
                   <v-icon 
                     :icon="packageStore.getPackageStatus(pkg.name) === 'selected' ? 'mdi-check-circle' : 
                            packageStore.getPackageStatus(pkg.name) === 'removed' ? 'mdi-package-variant-remove' :
-                           'mdi-package-variant'"
+                           packageStore.getPackageStatus(pkg.name) === 'default' ? 'mdi-package-variant' :
+                           'mdi-package-variant-plus'"
                     :color="packageStore.getPackageStatus(pkg.name) === 'selected' ? 'primary' :
                             packageStore.getPackageStatus(pkg.name) === 'removed' ? 'error' :
+                            packageStore.getPackageStatus(pkg.name) === 'default' ? 'secondary' :
                             'grey'"
                   />
                 </template>
 
-                <v-list-item-title class="font-weight-medium">{{ pkg.name }}</v-list-item-title>
+                <v-list-item-title class="font-weight-medium">
+                  {{ pkg.name }}
+                  <v-chip v-if="packageStore.isPackageInDefaults(pkg.name)" size="x-small" color="secondary" variant="tonal" class="ml-2">
+                    默认
+                  </v-chip>
+                </v-list-item-title>
                 <v-list-item-subtitle>
                   <div>{{ pkg.description }}</div>
                   <div class="d-flex align-center mt-1">
@@ -384,62 +391,50 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
                       size="small"
                       @click="showPackageDetails(pkg)"
                     />
-                    <v-menu v-if="packageStore.getPackageStatus(pkg.name) === 'none'">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          icon="mdi-dots-vertical"
-                          variant="text"
-                          size="small"
-                          v-bind="props"
-                        />
-                      </template>
-                      <v-list>
-                        <v-list-item @click="addPackage(pkg.name)">
-                          <template #prepend>
-                            <v-icon icon="mdi-plus" color="primary" />
-                          </template>
-                          <v-list-item-title>添加包</v-list-item-title>
-                        </v-list-item>
-                        <v-list-item @click="markForRemoval(pkg.name)">
-                          <template #prepend>
-                            <v-icon icon="mdi-delete-forever" color="error" />
-                          </template>
-                          <v-list-item-title>标记删除</v-list-item-title>
-                        </v-list-item>
-                      </v-list>
-                    </v-menu>
-                    <v-menu v-else-if="packageStore.getPackageStatus(pkg.name) === 'selected'">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          icon="mdi-dots-vertical"
-                          variant="text"
-                          size="small"
-                          v-bind="props"
-                        />
-                      </template>
-                      <v-list>
-                        <v-list-item @click="removePackage(pkg.name)">
-                          <template #prepend>
-                            <v-icon icon="mdi-minus" color="error" />
-                          </template>
-                          <v-list-item-title>取消选择</v-list-item-title>
-                        </v-list-item>
-                        <v-list-item @click="markForRemoval(pkg.name)">
-                          <template #prepend>
-                            <v-icon icon="mdi-delete-forever" color="error" />
-                          </template>
-                          <v-list-item-title>标记删除</v-list-item-title>
-                        </v-list-item>
-                      </v-list>
-                    </v-menu>
-                    <v-btn
-                      v-else-if="packageStore.getPackageStatus(pkg.name) === 'removed'"
-                      icon="mdi-restore"
-                      variant="text"
-                      size="small"
-                      color="success"
-                      @click="packageStore.removeRemovedPackage(pkg.name)"
-                    />
+                    
+                    <!-- 非默认包的按钮逻辑 -->
+                    <template v-if="!packageStore.isPackageInDefaults(pkg.name)">
+                      <v-btn
+                        v-if="!packageStore.isPackageSelected(pkg.name)"
+                        icon="mdi-plus"
+                        variant="text"
+                        size="small"
+                        color="primary"
+                        title="添加"
+                        @click="packageStore.togglePackage(pkg.name)"
+                      />
+                      <v-btn
+                        v-else
+                        icon="mdi-close"
+                        variant="text"
+                        size="small"
+                        color="error"
+                        title="取消添加"
+                        @click="packageStore.togglePackage(pkg.name)"
+                      />
+                    </template>
+                    
+                    <!-- 默认包的按钮逻辑 -->
+                    <template v-else>
+                      <v-btn
+                        v-if="packageStore.isPackageSelected(pkg.name)"
+                        icon="mdi-delete"
+                        variant="text"
+                        size="small"
+                        color="error"
+                        title="排除"
+                        @click="packageStore.togglePackage(pkg.name)"
+                      />
+                      <v-btn
+                        v-else
+                        icon="mdi-restore"
+                        variant="text"
+                        size="small"
+                        color="success"
+                        title="取消排除"
+                        @click="packageStore.togglePackage(pkg.name)"
+                      />
+                    </template>
                   </div>
                 </template>
               </v-list-item>

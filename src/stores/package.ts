@@ -3,9 +3,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { packageManager } from '@/services/packageManager'
+import { useFirmwareStore } from '@/stores/firmware'
 import type { OpenWrtPackage, PackageFeed, PackageSearchFilter } from '@/types/package'
 
 export const usePackageStore = defineStore('package', () => {
+  const firmwareStore = useFirmwareStore()
   // State
   const feeds = ref<PackageFeed[]>([])
   const selectedPackages = ref<Set<string>>(new Set())
@@ -53,12 +55,28 @@ export const usePackageStore = defineStore('package', () => {
   // Build packages list with proper prefixes
   const buildPackagesList = computed(() => {
     const packages: string[] = []
+    const defaultPackages = firmwareStore.selectedProfile?.default_packages || []
     
-    // Add selected packages
-    selectedPackagesList.value.forEach(pkg => packages.push(pkg))
+    // Start with default packages, excluding those marked for removal
+    defaultPackages.forEach(pkg => {
+      if (!removedPackages.value.has(pkg)) {
+        packages.push(pkg)
+      }
+    })
     
-    // Add removed packages with - prefix
-    removedPackagesList.value.forEach(pkg => packages.push(`-${pkg}`))
+    // Add explicitly selected non-default packages
+    selectedPackagesList.value.forEach(pkg => {
+      if (!defaultPackages.includes(pkg)) {
+        packages.push(pkg)
+      }
+    })
+    
+    // Add removed packages with - prefix (only for default packages that are explicitly removed)
+    removedPackagesList.value.forEach(pkg => {
+      if (defaultPackages.includes(pkg)) {
+        packages.push(`-${pkg}`)
+      }
+    })
     
     return packages
   })
@@ -80,14 +98,11 @@ export const usePackageStore = defineStore('package', () => {
       
       // Define feed names based on what URLs we got
       const baseFeedNames = ['base', 'luci', 'packages', 'telephony']
-      let feedNames = [...baseFeedNames]
-      
-      if (target) {
-        feedNames.push('target-packages')
-        if (kernelInfo) {
-          feedNames.push('kmods')
-        }
-      }
+      const feedNames = [
+        ...baseFeedNames,
+        ...(target ? ['target-packages'] : []),
+        ...(target && kernelInfo ? ['kmods'] : [])
+      ]
 
       // Reset feeds
       feeds.value = feedNames.map((name, index) => ({
@@ -129,15 +144,40 @@ export const usePackageStore = defineStore('package', () => {
   }
 
   function togglePackage(packageName: string): void {
-    if (selectedPackages.value.has(packageName)) {
-      removePackage(packageName)
+    const isDefaultPackage = isPackageInDefaults(packageName)
+    
+    if (isDefaultPackage) {
+      // If it's a default package, toggle between normal state and removed state
+      if (removedPackages.value.has(packageName)) {
+        removeRemovedPackage(packageName) // Remove from removed list (back to default)
+      } else {
+        addRemovedPackage(packageName) // Add to removed list (will be excluded)
+      }
     } else {
-      addPackage(packageName)
+      // If it's not a default package, toggle between not selected and selected
+      if (selectedPackages.value.has(packageName)) {
+        removePackage(packageName) // Remove from selected list
+      } else {
+        addPackage(packageName) // Add to selected list
+      }
     }
   }
 
+  function isPackageInDefaults(packageName: string): boolean {
+    const defaultPackages = firmwareStore.selectedProfile?.default_packages || []
+    return defaultPackages.includes(packageName)
+  }
+
   function isPackageSelected(packageName: string): boolean {
-    return selectedPackages.value.has(packageName)
+    const isDefaultPackage = isPackageInDefaults(packageName)
+    
+    if (isDefaultPackage) {
+      // For default packages, "selected" means not in removed list
+      return !removedPackages.value.has(packageName)
+    } else {
+      // For non-default packages, "selected" means in selected list
+      return selectedPackages.value.has(packageName)
+    }
   }
 
   function clearSelectedPackages(): void {
@@ -145,9 +185,12 @@ export const usePackageStore = defineStore('package', () => {
   }
 
   function addRemovedPackage(packageName: string): void {
-    removedPackages.value.add(packageName)
-    // Remove from selected if it was there
-    selectedPackages.value.delete(packageName)
+    // Only allow removing packages that are in the default package list
+    if (isPackageInDefaults(packageName)) {
+      removedPackages.value.add(packageName)
+      // Remove from selected if it was there
+      selectedPackages.value.delete(packageName)
+    }
   }
 
   function removeRemovedPackage(packageName: string): void {
@@ -163,8 +206,8 @@ export const usePackageStore = defineStore('package', () => {
   }
 
   function clearAllPackages(): void {
-    selectedPackages.value.clear()
-    removedPackages.value.clear()
+    selectedPackages.value.clear() // Clear explicitly added packages
+    removedPackages.value.clear()  // Clear explicitly removed default packages
     // Also clear loaded package data to force reload for new device
     allPackages.value = []
     feeds.value = []
@@ -229,10 +272,16 @@ export const usePackageStore = defineStore('package', () => {
     }
   }
 
-  function getPackageStatus(packageName: string): 'selected' | 'removed' | 'none' {
-    if (selectedPackages.value.has(packageName)) return 'selected'
-    if (removedPackages.value.has(packageName)) return 'removed'
-    return 'none'
+  function getPackageStatus(packageName: string): 'selected' | 'removed' | 'default' | 'none' {
+    const isDefaultPackage = isPackageInDefaults(packageName)
+    
+    if (isDefaultPackage) {
+      // Default packages are "selected" by default, unless explicitly removed
+      return removedPackages.value.has(packageName) ? 'removed' : 'default'
+    } else {
+      // Non-default packages are "none" by default, unless explicitly selected
+      return selectedPackages.value.has(packageName) ? 'selected' : 'none'
+    }
   }
 
   function clearError(): void {
@@ -299,6 +348,7 @@ export const usePackageStore = defineStore('package', () => {
     getSelectedPackagesInfo,
     getTotalSize,
     getPackageStatus,
+    isPackageInDefaults,
     clearError,
     setSearchQuery,
     setSelectedSection,
