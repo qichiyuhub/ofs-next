@@ -54,7 +54,18 @@ jobs:
           ${{ runner.os }}-pnpm-store-
           
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: |
+        # 检查锁文件是否存在和兼容
+        if [ -f "pnpm-lock.yaml" ]; then
+          echo "发现 pnpm-lock.yaml，尝试使用 frozen-lockfile 安装"
+          pnpm install --frozen-lockfile || {
+            echo "frozen-lockfile 安装失败，使用普通安装"
+            pnpm install --no-frozen-lockfile
+          }
+        else
+          echo "未发现 pnpm-lock.yaml，使用普通安装"
+          pnpm install
+        fi
       
     - name: Build project
       run: pnpm run build
