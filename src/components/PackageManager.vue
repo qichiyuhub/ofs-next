@@ -264,9 +264,12 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
           <v-icon icon="mdi-package-variant-plus" class="mr-2" />
           添加软件包
           <v-spacer />
-          <v-chip v-if="packageStore.totalPackages > 0" variant="tonal">
-            共 {{ packageStore.totalPackages }} 个软件包
-          </v-chip>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            size="small"
+            @click="closeAddDialog"
+          />
         </v-card-title>
 
         <v-card-text>
@@ -290,6 +293,25 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
 
           <!-- Search and filters -->
           <div v-if="!packageStore.isLoading && packageStore.totalPackages > 0">
+            <!-- Package info bar -->
+            <v-alert
+              variant="tonal"
+              color="info"
+              class="mb-4"
+              :icon="false"
+            >
+              <div class="d-flex align-center">
+                <v-icon icon="mdi-information" size="small" class="mr-2" />
+                <span class="text-body-2">
+                  共加载 <strong>{{ packageStore.totalPackages }}</strong> 个软件包
+                </span>
+                <v-spacer />
+                <v-chip size="small" variant="text" color="info">
+                  来自 {{ packageStore.packageSources.length }} 个软件源
+                </v-chip>
+              </div>
+            </v-alert>
+
             <div class="d-flex mb-4">
               <v-text-field
                 v-model="searchInput"
@@ -442,10 +464,6 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
           </div>
         </v-card-text>
 
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="closeAddDialog">关闭</v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -456,9 +474,12 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
           <v-icon icon="mdi-package-variant" class="mr-2" />
           {{ selectedPackageDetail.name }}
           <v-spacer />
-          <v-chip size="small" color="secondary">
-            v{{ selectedPackageDetail.version }}
-          </v-chip>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            size="small"
+            @click="closePackageDetail"
+          />
         </v-card-title>
 
         <v-card-text>
@@ -467,6 +488,25 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
             <p class="text-body-2">{{ selectedPackageDetail.description }}</p>
           </div>
 
+          <!-- 第一行：版本 + 许可证 -->
+          <v-row>
+            <v-col cols="6">
+              <div class="mb-3">
+                <h4 class="text-subtitle-2 mb-1">版本</h4>
+                <v-chip size="small" color="primary" variant="tonal">
+                  v{{ selectedPackageDetail.version }}
+                </v-chip>
+              </div>
+            </v-col>
+            <v-col cols="6">
+              <div class="mb-3">
+                <h4 class="text-subtitle-2 mb-1">许可证</h4>
+                <span class="text-body-2">{{ selectedPackageDetail.license || '未知' }}</span>
+              </div>
+            </v-col>
+          </v-row>
+
+          <!-- 第二行：分类 + 来源 -->
           <v-row>
             <v-col cols="6">
               <div class="mb-3">
@@ -486,6 +526,7 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
             </v-col>
           </v-row>
 
+          <!-- 第三行：下载大小 + 安装大小 -->
           <v-row>
             <v-col cols="6">
               <div class="mb-3">
@@ -501,6 +542,15 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
             </v-col>
           </v-row>
 
+          <!-- 主页链接 -->
+          <div v-if="selectedPackageDetail.url" class="mb-3">
+            <h4 class="text-subtitle-2 mb-1">主页</h4>
+            <a :href="selectedPackageDetail.url" target="_blank" class="text-primary">
+              {{ selectedPackageDetail.url }}
+            </a>
+          </div>
+
+          <!-- 最后一行：依赖 -->
           <div v-if="selectedPackageDetail.depends?.length" class="mb-3">
             <h4 class="text-subtitle-2 mb-2">依赖</h4>
             <div class="d-flex flex-wrap gap-1">
@@ -514,64 +564,8 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
               </v-chip>
             </div>
           </div>
-
-          <div v-if="selectedPackageDetail.license" class="mb-3">
-            <h4 class="text-subtitle-2 mb-1">许可证</h4>
-            <span class="text-body-2">{{ selectedPackageDetail.license }}</span>
-          </div>
-
-          <div v-if="selectedPackageDetail.url" class="mb-3">
-            <h4 class="text-subtitle-2 mb-1">主页</h4>
-            <a :href="selectedPackageDetail.url" target="_blank" class="text-primary">
-              {{ selectedPackageDetail.url }}
-            </a>
-          </div>
         </v-card-text>
 
-        <v-card-actions>
-          <v-btn
-            v-if="packageStore.getPackageStatus(selectedPackageDetail.name) === 'none'"
-            color="primary"
-            prepend-icon="mdi-plus"
-            @click="addPackage(selectedPackageDetail.name)"
-          >
-            添加
-          </v-btn>
-          <v-btn
-            v-if="packageStore.getPackageStatus(selectedPackageDetail.name) === 'none'"
-            color="error"
-            prepend-icon="mdi-delete-forever"
-            @click="packageStore.addRemovedPackage(selectedPackageDetail.name)"
-          >
-            标记删除
-          </v-btn>
-          <v-btn
-            v-else-if="packageStore.getPackageStatus(selectedPackageDetail.name) === 'selected'"
-            color="warning"
-            prepend-icon="mdi-minus"
-            @click="removePackage(selectedPackageDetail.name)"
-          >
-            取消选择
-          </v-btn>
-          <v-btn
-            v-if="packageStore.getPackageStatus(selectedPackageDetail.name) === 'selected'"
-            color="error"
-            prepend-icon="mdi-delete-forever"
-            @click="packageStore.addRemovedPackage(selectedPackageDetail.name)"
-          >
-            标记删除
-          </v-btn>
-          <v-btn
-            v-else-if="packageStore.getPackageStatus(selectedPackageDetail.name) === 'removed'"
-            color="success"
-            prepend-icon="mdi-restore"
-            @click="packageStore.removeRemovedPackage(selectedPackageDetail.name)"
-          >
-            恢复
-          </v-btn>
-          <v-spacer />
-          <v-btn @click="closePackageDetail">关闭</v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
   </v-card>
