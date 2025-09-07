@@ -214,6 +214,40 @@ export const usePackageStore = defineStore('package', () => {
     error.value = ''
   }
 
+  function addCustomFeedPackages(feedName: string, packages: OpenWrtPackage[]): void {
+    // Check if this feed already exists
+    const existingFeedIndex = feeds.value.findIndex(feed => feed.name === feedName)
+    
+    if (existingFeedIndex >= 0) {
+      // Update existing feed
+      feeds.value[existingFeedIndex].packages = packages
+      feeds.value[existingFeedIndex].lastUpdated = new Date()
+      feeds.value[existingFeedIndex].isLoading = false
+      feeds.value[existingFeedIndex].error = undefined
+    } else {
+      // Add new feed
+      feeds.value.push({
+        name: feedName,
+        url: '', // Custom feeds don't need to store URL here
+        packages,
+        isLoading: false,
+        lastUpdated: new Date()
+      })
+    }
+
+    // Update allPackages with the new packages
+    allPackages.value = feeds.value.flatMap(feed => feed.packages || [])
+  }
+
+  function removeCustomFeedPackages(feedName: string): void {
+    const feedIndex = feeds.value.findIndex(feed => feed.name === feedName)
+    if (feedIndex >= 0) {
+      feeds.value.splice(feedIndex, 1)
+      // Update allPackages after removing the feed
+      allPackages.value = feeds.value.flatMap(feed => feed.packages || [])
+    }
+  }
+
   function setSelectedPackages(packages: string[]): void {
     selectedPackages.value = new Set(packages.filter(pkg => !pkg.startsWith('-')))
     removedPackages.value = new Set(packages.filter(pkg => pkg.startsWith('-')).map(pkg => pkg.substring(1)))
@@ -339,6 +373,8 @@ export const usePackageStore = defineStore('package', () => {
     isPackageRemoved,
     clearRemovedPackages,
     clearAllPackages,
+    addCustomFeedPackages,
+    removeCustomFeedPackages,
     setSelectedPackages,
     getPackageInfo,
     getDependencies,

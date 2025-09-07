@@ -6,6 +6,8 @@ import { useModuleStore } from '@/stores/module'
 import { usePackageStore } from '@/stores/package'
 import { AsuService, type AsuBuildRequest, type AsuBuildResponse } from '@/services/asu'
 import { config } from '@/config'
+import { packageManager } from '@/services/packageManager'
+import type { OpenWrtPackage } from '@/types/package'
 import ModuleSource from './ModuleSource.vue'
 import ModuleSelector from './ModuleSelector.vue'
 import PackageManager from './PackageManager.vue'
@@ -27,7 +29,7 @@ const asuService = new AsuService()
 // Form data
 const uciDefaultsContent = ref('')
 const rootfsSizeMb = ref<number | null>(null)
-const repositories = ref<{ name: string; url: string }[]>([])
+const repositories = ref<Array<{ name: string; url: string; loading?: boolean; packages?: OpenWrtPackage[]; error?: string }>>([])
 const repositoryKeys = ref<string[]>([])
 const isExpanded = ref(false)
 
@@ -317,7 +319,68 @@ function addRepository() {
   repositories.value.push({ name: '', url: '' })
 }
 
+async function loadRepositoryIndex(repo: { name: string; url: string; loading?: boolean; packages?: OpenWrtPackage[]; error?: string }) {
+  if (!repo.url) return
+  
+  repo.loading = true
+  repo.error = undefined
+  
+  try {
+    // Ensure the URL ends with '/Packages' for the feed URL
+    let feedUrl = repo.url.trim()
+    if (!feedUrl.endsWith('/Packages')) {
+      // Add trailing slash if needed, then append 'Packages'
+      if (!feedUrl.endsWith('/')) {
+        feedUrl += '/'
+      }
+      feedUrl += 'Packages'
+    }
+    
+    const packages = await packageManager.fetchFeedPackages(feedUrl, repo.name || 'custom')
+    repo.packages = packages
+    
+    // Add these packages to the main package store for browsing
+    packageStore.addCustomFeedPackages(repo.name || 'custom', packages)
+  } catch (error) {
+    repo.error = error instanceof Error ? error.message : '加载失败'
+    console.error('Failed to load repository index:', error)
+  } finally {
+    repo.loading = false
+  }
+}
+
+// Watch for URL changes and auto-load when both name and url are filled
+watch(repositories, async (newRepos, oldRepos) => {
+  for (let i = 0; i < newRepos.length; i++) {
+    const newRepo = newRepos[i]
+    const oldRepo = oldRepos?.[i]
+    
+    console.log('Repository watch triggered:', {
+      index: i,
+      name: newRepo.name,
+      url: newRepo.url,
+      loading: newRepo.loading,
+      hasPackages: !!newRepo.packages,
+      urlChanged: !oldRepo || oldRepo.url !== newRepo.url
+    })
+    
+    // Auto-load when both name and url are filled
+    if (newRepo.name.trim() && newRepo.url.trim() && 
+        !newRepo.loading && !newRepo.packages) {
+      console.log('Loading repository index for:', newRepo.name)
+      await loadRepositoryIndex(newRepo)
+    }
+  }
+}, { deep: true })
+
 function removeRepository(index: number) {
+  const repo = repositories.value[index]
+  
+  // Remove packages from package store if they were loaded
+  if (repo && repo.name && repo.packages) {
+    packageStore.removeCustomFeedPackages(repo.name)
+  }
+  
   repositories.value.splice(index, 1)
 }
 
@@ -524,8 +587,14 @@ onUnmounted(() => {
                     label="源地址"
                     variant="outlined"
                     density="compact"
-                    placeholder="https://downloads.example.com/packages"
+                    placeholder="https://downloads.example.com/packages/Packages"
+                    :loading="repo.loading"
+                    :error="!!repo.error"
+                    :error-messages="repo.error"
                   />
+                  <div v-if="repo.packages" class="text-caption text-success mt-1">
+                    ✓ 已加载 {{ repo.packages.length }} 个软件包
+                  </div>
                 </v-col>
                 <v-col cols="12" md="1">
                   <v-btn
