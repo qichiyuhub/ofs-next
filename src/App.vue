@@ -17,8 +17,19 @@ const packageStore = usePackageStore()
 // Configuration Manager state
 const showConfigManager = ref(false)
 
-// Store reference to CustomBuild component for accessing form data
-const customBuildRef = ref<InstanceType<typeof FirmwareSelector> | null>(null)
+// Store reference to CustomBuild component for accessing form data  
+const customBuildRef = ref<{
+  getCurrentCustomBuildConfig?: () => {
+    packages: string[];
+    repositories: Array<{ name: string; url: string; }>;
+    repositoryKeys: string[];
+  };
+  applyCustomBuildConfig?: (config: {
+    packages: string[];
+    repositories: Array<{ name: string; url: string; }>;
+    repositoryKeys: string[];
+  }) => void;
+} | null>(null)
 
 // Global app state management for configuration system
 function getAllAppState() {
