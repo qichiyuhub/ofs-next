@@ -553,12 +553,13 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
           <!-- 最后一行：依赖 -->
           <div v-if="selectedPackageDetail.depends?.length" class="mb-3">
             <h4 class="text-subtitle-2 mb-2">依赖</h4>
-            <div class="d-flex flex-wrap gap-1">
+            <div class="d-flex flex-wrap">
               <v-chip
                 v-for="dep in selectedPackageDetail.depends"
                 :key="dep"
                 size="x-small"
                 variant="outlined"
+                class="ma-1"
               >
                 {{ dep }}
               </v-chip>
