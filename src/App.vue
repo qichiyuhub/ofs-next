@@ -126,13 +126,20 @@ onMounted(async () => {
         
         <!-- Mobile controls -->
         <div v-else class="d-flex align-center">
+          <!-- Configuration Manager Button -->
+          <v-btn
+            icon="mdi-cog-box"
+            variant="text"
+            class="mr-1"
+            @click="showConfigManager = !showConfigManager"
+          />
+          
           <!-- Language switch with icon -->
           <v-menu>
             <template v-slot:activator="{ props }">
               <v-btn
                 icon="mdi-translate"
                 variant="text"
-                class="mr-1"
                 v-bind="props"
               />
             </template>
@@ -150,13 +157,6 @@ onMounted(async () => {
               </v-list-item>
             </v-list>
           </v-menu>
-          
-          <!-- Configuration Manager Button -->
-          <v-btn
-            icon="mdi-cog-box"
-            variant="text"
-            @click="showConfigManager = !showConfigManager"
-          />
         </div>
       </div>
     </v-app-bar>
