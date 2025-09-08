@@ -590,42 +590,49 @@ onUnmounted(() => {
               暂无自定义软件源
             </div>
 
-            <div v-for="(repo, index) in repositories" :key="index" class="mb-3">
-              <v-row>
-                <v-col cols="12" md="4">
-                  <v-text-field
-                    v-model="repo.name"
-                    label="源名称"
-                    variant="outlined"
-                    density="compact"
-                    placeholder="my-repo"
-                  />
-                </v-col>
-                <v-col cols="12" md="7">
-                  <v-text-field
-                    v-model="repo.url"
-                    label="源地址"
-                    variant="outlined"
-                    density="compact"
-                    placeholder="https://downloads.example.com/packages/Packages"
-                    :loading="repo.loading"
-                    :error="!!repo.error"
-                    :error-messages="repo.error"
-                  />
-                  <div v-if="repo.packages" class="text-caption text-success mt-1">
-                    ✓ 已加载 {{ repo.packages.length }} 个软件包
-                  </div>
-                </v-col>
-                <v-col cols="12" md="1">
-                  <v-btn
-                    icon="mdi-delete"
-                    variant="text"
-                    color="error"
-                    @click="removeRepository(index)"
-                  />
-                </v-col>
-              </v-row>
-            </div>
+            <v-card v-for="(repo, index) in repositories" :key="index" variant="outlined" class="mb-3">
+              <v-card-title class="d-flex align-center pa-3">
+                <v-icon icon="mdi-package-variant" class="mr-2" />
+                软件源 {{ index + 1 }}
+                <v-spacer />
+                <v-btn
+                  icon="mdi-delete"
+                  variant="text"
+                  color="error"
+                  size="small"
+                  @click="removeRepository(index)"
+                />
+              </v-card-title>
+              
+              <v-card-text class="pt-0">
+                <v-row>
+                  <v-col cols="12" md="4">
+                    <v-text-field
+                      v-model="repo.name"
+                      label="源名称"
+                      variant="outlined"
+                      density="compact"
+                      placeholder="my-repo"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="8">
+                    <v-text-field
+                      v-model="repo.url"
+                      label="源地址"
+                      variant="outlined"
+                      density="compact"
+                      placeholder="https://downloads.example.com/packages/Packages"
+                      :loading="repo.loading"
+                      :error="!!repo.error"
+                      :error-messages="repo.error"
+                    />
+                    <div v-if="repo.packages" class="text-caption text-success mt-1">
+                      ✓ 已加载 {{ repo.packages.length }} 个软件包
+                    </div>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
           </v-col>
 
           <!-- Repository Keys -->
@@ -646,30 +653,33 @@ onUnmounted(() => {
               暂无签名密钥
             </div>
 
-            <div v-for="(key, index) in repositoryKeys" :key="index" class="mb-3">
-              <v-row>
-                <v-col cols="12" md="11">
-                  <v-textarea
-                    v-model="repositoryKeys[index]"
-                    label="usign 公钥"
-                    variant="outlined"
-                    rows="3"
-                    density="compact"
-                    placeholder="untrusted comment: OpenWrt usign key&#10;RWQKvaZaSStIhx4t06ISyV42CIpK7niKfR+Yro/WHiKLa122SEh2j3Z4"
-                    hint="用于验证自定义软件源的 usign 公钥"
-                    persistent-hint
-                  />
-                </v-col>
-                <v-col cols="12" md="1">
-                  <v-btn
-                    icon="mdi-delete"
-                    variant="text"
-                    color="error"
-                    @click="removeRepositoryKey(index)"
-                  />
-                </v-col>
-              </v-row>
-            </div>
+            <v-card v-for="(key, index) in repositoryKeys" :key="index" variant="outlined" class="mb-3">
+              <v-card-title class="d-flex align-center pa-3">
+                <v-icon icon="mdi-key-variant" class="mr-2" />
+                签名密钥 {{ index + 1 }}
+                <v-spacer />
+                <v-btn
+                  icon="mdi-delete"
+                  variant="text"
+                  color="error"
+                  size="small"
+                  @click="removeRepositoryKey(index)"
+                />
+              </v-card-title>
+              
+              <v-card-text class="pt-0">
+                <v-textarea
+                  v-model="repositoryKeys[index]"
+                  label="usign 公钥"
+                  variant="outlined"
+                  rows="3"
+                  density="compact"
+                  placeholder="untrusted comment: OpenWrt usign key&#10;RWQKvaZaSStIhx4t06ISyV42CIpK7niKfR+Yro/WHiKLa122SEh2j3Z4"
+                  hint="用于验证自定义软件源的 usign 公钥"
+                  persistent-hint
+                />
+              </v-card-text>
+            </v-card>
           </v-col>
         </v-row>
 

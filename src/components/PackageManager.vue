@@ -24,9 +24,56 @@ watch(searchInput, (newValue) => {
   }, 300)
 })
 
-// Computed
+// Use a Map to cache package status to avoid repeated calculations
+const packageStatusCache = ref(new Map<string, string>())
+
+// Computed with optimized caching
 const displayPackages = computed(() => {
-  return packageStore.filteredPackages.slice(0, 50) // Limit results for performance
+  const packages = packageStore.filteredPackages.slice(0, 50)
+  
+  // Update cache only for visible packages
+  packages.forEach(pkg => {
+    if (!packageStatusCache.value.has(pkg.name)) {
+      packageStatusCache.value.set(pkg.name, packageStore.getPackageStatus(pkg.name))
+    }
+  })
+  
+  return packages
+})
+
+// More granular cache invalidation - only clear cache for changed packages
+watch(() => packageStore.selectedPackagesList, (newSelected, oldSelected) => {
+  if (oldSelected) {
+    // Find packages that were added or removed
+    const added = newSelected.filter(pkg => !oldSelected.includes(pkg))
+    const removed = oldSelected.filter(pkg => !newSelected.includes(pkg))
+    
+    // Only clear cache for changed packages
+    const changedPackages = [...added, ...removed]
+    changedPackages.forEach(pkg => {
+      packageStatusCache.value.delete(pkg)
+    })
+  } else {
+    // First time, clear all cache
+    packageStatusCache.value.clear()
+  }
+})
+
+watch(() => packageStore.removedPackagesList, (newRemoved, oldRemoved) => {
+  if (oldRemoved) {
+    // Find packages that were added or removed from removed list
+    const added = newRemoved.filter(pkg => !oldRemoved.includes(pkg))
+    const removed = oldRemoved.filter(pkg => !newRemoved.includes(pkg))
+    
+    // Only clear cache for changed packages
+    const changedPackages = [...added, ...removed]
+    changedPackages.forEach(pkg => {
+      packageStatusCache.value.delete(pkg)
+    })
+  } else {
+    // First time, clear all cache
+    packageStatusCache.value.clear()
+  }
 })
 
 const totalSize = computed(() => {
@@ -115,6 +162,44 @@ function clearAllPackages() {
   packageStore.clearAllPackages()
 }
 
+// Optimized functions using cache
+function getCachedPackageStatus(packageName: string): string {
+  if (!packageStatusCache.value.has(packageName)) {
+    packageStatusCache.value.set(packageName, packageStore.getPackageStatus(packageName))
+  }
+  return packageStatusCache.value.get(packageName)!
+}
+
+function getPackageIcon(packageName: string): string {
+  const status = getCachedPackageStatus(packageName)
+  switch (status) {
+    case 'selected': return 'mdi-check-circle'
+    case 'removed': return 'mdi-package-variant-remove'
+    case 'default': return 'mdi-package-variant'
+    default: return 'mdi-package-variant-plus'
+  }
+}
+
+function getPackageColor(packageName: string): string {
+  const status = getCachedPackageStatus(packageName)
+  switch (status) {
+    case 'selected': return 'primary'
+    case 'removed': return 'error'
+    case 'default': return 'secondary'
+    default: return 'grey'
+  }
+}
+
+function getPackageBackgroundClass(packageName: string): string {
+  const status = getCachedPackageStatus(packageName)
+  switch (status) {
+    case 'selected': return 'bg-primary-container'
+    case 'removed': return 'bg-error-container'
+    case 'default': return 'bg-secondary-container'
+    default: return ''
+  }
+}
+
 // Auto-load packages when profile is loaded successfully
 watch(() => firmwareStore.selectedProfile, (newProfile, oldProfile) => {
   if (newProfile && newProfile !== oldProfile) {
@@ -152,29 +237,44 @@ watch(() => firmwareStore.selectedProfile, (newProfile, oldProfile) => {
 
       <div v-else>
         <!-- Summary -->
-        <div class="d-flex align-center mb-4">
-          <div class="flex-grow-1">
-            <v-chip color="primary" variant="tonal" class="mr-2">
-              已选择 {{ packageStore.selectedPackagesList.length }} 个软件包
-            </v-chip>
-            <v-chip v-if="packageStore.removedPackagesList.length > 0" color="error" variant="tonal" class="mr-2">
-              要移除 {{ packageStore.removedPackagesList.length }} 个软件包
-            </v-chip>
-            <v-chip color="info" variant="tonal" class="mr-2">
-              下载: {{ formatSize(totalSize.downloadSize) }}
-            </v-chip>
-            <v-chip color="warning" variant="tonal">
-              安装: {{ formatSize(totalSize.installedSize) }}
-            </v-chip>
+        <div class="mb-4">
+          <div class="d-flex align-center justify-space-between mb-3">
+            <div class="text-subtitle-2 text-medium-emphasis">
+              软件包摘要
+            </div>
+            <v-btn
+              size="small"
+              variant="outlined"
+              color="error"
+              @click="clearAllPackages"
+            >
+              清空全部
+            </v-btn>
           </div>
-          <v-btn
-            size="small"
-            variant="outlined"
-            color="error"
-            @click="clearAllPackages"
-          >
-            清空全部
-          </v-btn>
+          
+          <!-- Package count info in rows for better mobile layout -->
+          <v-row dense>
+            <v-col cols="6" sm="3">
+              <v-chip color="primary" variant="tonal" size="small" class="w-100 justify-center">
+                已选择 {{ packageStore.selectedPackagesList.length }} 个
+              </v-chip>
+            </v-col>
+            <v-col cols="6" sm="3" v-if="packageStore.removedPackagesList.length > 0">
+              <v-chip color="error" variant="tonal" size="small" class="w-100 justify-center">
+                移除 {{ packageStore.removedPackagesList.length }} 个
+              </v-chip>
+            </v-col>
+            <v-col cols="6" sm="3">
+              <v-chip color="info" variant="tonal" size="small" class="w-100 justify-center">
+                下载: {{ formatSize(totalSize.downloadSize) }}
+              </v-chip>
+            </v-col>
+            <v-col cols="6" sm="3">
+              <v-chip color="warning" variant="tonal" size="small" class="w-100 justify-center">
+                安装: {{ formatSize(totalSize.installedSize) }}
+              </v-chip>
+            </v-col>
+          </v-row>
         </div>
 
         <!-- Package lists -->
@@ -316,37 +416,42 @@ watch(() => firmwareStore.selectedProfile, (newProfile, oldProfile) => {
               </div>
             </v-alert>
 
-            <div class="d-flex mb-4">
-              <v-text-field
-                v-model="searchInput"
-                label="搜索软件包"
-                placeholder="输入软件包名称或描述..."
-                prepend-inner-icon="mdi-magnify"
-                variant="outlined"
-                density="compact"
-                clearable
-                class="flex-grow-1 mr-3"
-              />
-
-              <v-select
-                v-model="packageStore.selectedSection"
-                :items="[{ title: '全部分类', value: '' }, ...packageStore.packageSections.map(s => ({ title: getSectionName(s), value: s }))]"
-                label="分类"
-                variant="outlined"
-                density="compact"
-                style="min-width: 150px"
-                class="mr-3"
-              />
-
-              <v-select
-                v-model="packageStore.selectedSource"
-                :items="[{ title: '全部来源', value: '' }, ...packageStore.packageSources.map(s => ({ title: getFeedName(s), value: s }))]"
-                label="来源"
-                variant="outlined"
-                density="compact"
-                style="min-width: 120px"
-              />
-            </div>
+            <!-- Search and filters with responsive layout -->
+            <v-row class="mb-4">
+              <!-- Search field - full width on mobile, main width on desktop -->
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="searchInput"
+                  label="搜索软件包"
+                  placeholder="输入软件包名称或描述..."
+                  prepend-inner-icon="mdi-magnify"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                />
+              </v-col>
+              
+              <!-- Filters - half width each on mobile, smaller on desktop -->
+              <v-col cols="6" md="3">
+                <v-select
+                  v-model="packageStore.selectedSection"
+                  :items="[{ title: '全部分类', value: '' }, ...packageStore.packageSections.map(s => ({ title: getSectionName(s), value: s }))]"
+                  label="分类"
+                  variant="outlined"
+                  density="compact"
+                />
+              </v-col>
+              
+              <v-col cols="6" md="3">
+                <v-select
+                  v-model="packageStore.selectedSource"
+                  :items="[{ title: '全部来源', value: '' }, ...packageStore.packageSources.map(s => ({ title: getFeedName(s), value: s }))]"
+                  label="来源"
+                  variant="outlined"
+                  density="compact"
+                />
+              </v-col>
+            </v-row>
 
             <!-- Results info -->
             <div class="d-flex align-center mb-3">
@@ -369,22 +474,12 @@ watch(() => firmwareStore.selectedProfile, (newProfile, oldProfile) => {
               <v-list-item
                 v-for="pkg in displayPackages"
                 :key="pkg.name"
-                :class="{ 
-                  'bg-primary-container': packageStore.getPackageStatus(pkg.name) === 'selected',
-                  'bg-error-container': packageStore.getPackageStatus(pkg.name) === 'removed',
-                  'bg-secondary-container': packageStore.getPackageStatus(pkg.name) === 'default'
-                }"
+                :class="getPackageBackgroundClass(pkg.name)"
               >
                 <template #prepend>
                   <v-icon 
-                    :icon="packageStore.getPackageStatus(pkg.name) === 'selected' ? 'mdi-check-circle' : 
-                           packageStore.getPackageStatus(pkg.name) === 'removed' ? 'mdi-package-variant-remove' :
-                           packageStore.getPackageStatus(pkg.name) === 'default' ? 'mdi-package-variant' :
-                           'mdi-package-variant-plus'"
-                    :color="packageStore.getPackageStatus(pkg.name) === 'selected' ? 'primary' :
-                            packageStore.getPackageStatus(pkg.name) === 'removed' ? 'error' :
-                            packageStore.getPackageStatus(pkg.name) === 'default' ? 'secondary' :
-                            'grey'"
+                    :icon="getPackageIcon(pkg.name)"
+                    :color="getPackageColor(pkg.name)"
                   />
                 </template>
 

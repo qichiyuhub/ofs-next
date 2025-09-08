@@ -82,20 +82,22 @@ onMounted(async () => {
   <v-app>
     <v-app-bar elevation="2" color="primary">
       <div class="d-flex align-center w-100">
+        <!-- Logo - responsive sizing -->
         <a :href="config.homepage_url" target="_blank" rel="noopener noreferrer">
           <img
             src="/logo.svg"
             :alt="`${config.brand_name} Logo`"
-            width="180"
-            height="40"
-            class="mr-4"
+            :width="$vuetify.display.mobile ? 140 : 180"
+            :height="$vuetify.display.mobile ? 30 : 40"
+            class="mr-2 mr-sm-4"
             style="cursor: pointer;"
           />
         </a>
         
         <v-spacer />
         
-        <div class="d-flex align-center">
+        <!-- Desktop controls -->
+        <div v-if="!$vuetify.display.mobile" class="d-flex align-center">
           <!-- Configuration Manager Button -->
           <v-btn
             icon="mdi-cog-box"
@@ -121,11 +123,49 @@ onMounted(async () => {
             </template>
           </v-select>
         </div>
+        
+        <!-- Mobile controls -->
+        <div v-else class="d-flex align-center">
+          <!-- Language switch with icon -->
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                icon="mdi-translate"
+                variant="text"
+                class="mr-1"
+                v-bind="props"
+              />
+            </template>
+            <v-list density="compact">
+              <v-list-item
+                v-for="lang in i18nStore.supportedLanguages"
+                :key="lang.code"
+                @click="i18nStore.changeLanguage(lang.code)"
+                :class="{ 'v-list-item--active': i18nStore.currentLanguage === lang.code }"
+              >
+                <v-list-item-title>{{ lang.name.replace(/ \(.*/, '') }}</v-list-item-title>
+                <template #append>
+                  <v-icon v-if="i18nStore.currentLanguage === lang.code" icon="mdi-check" color="primary" />
+                </template>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+          
+          <!-- Configuration Manager Button -->
+          <v-btn
+            icon="mdi-cog-box"
+            variant="text"
+            @click="showConfigManager = !showConfigManager"
+          />
+        </div>
       </div>
     </v-app-bar>
 
     <v-main>
-      <v-container style="max-width: 1100px; margin: 0 auto;">
+      <v-container 
+        :class="$vuetify.display.mobile ? 'pa-3' : 'pa-6'"
+        style="max-width: 1100px; margin: 0 auto;"
+      >
         <!-- Configuration Manager -->
         <div v-if="showConfigManager" class="mb-6">
           <ConfigurationManager />

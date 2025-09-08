@@ -181,7 +181,7 @@ function getImageIcon(type: string): string {
               :href="image.downloadUrl"
               color="primary"
               variant="elevated"
-              class="mr-4"
+              class="mr-4 download-btn"
               prepend-icon="mdi-download"
             >
               {{ image.label }}
@@ -220,5 +220,26 @@ function getImageIcon(type: string): string {
   color: #666;
   margin-top: 8px;
   word-break: break-all;
+}
+
+.download-btn {
+  height: auto !important;
+  min-height: 48px !important;
+  padding: 12px 16px !important;
+}
+
+.download-btn :deep(.v-btn__content) {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  line-height: 1.3 !important;
+  text-align: left !important;
+  width: 100% !important;
+  justify-content: flex-start !important;
+}
+
+.download-btn :deep(.v-btn__prepend) {
+  align-self: flex-start !important;
+  margin-top: 2px !important;
+  margin-right: 8px !important;
 }
 </style>

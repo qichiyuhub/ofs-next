@@ -184,7 +184,9 @@ function formatDate(date: Date): string {
         <v-icon icon="mdi-cog-box" class="mr-2" />
         配置管理
         <v-spacer />
-        <div class="d-flex">
+        
+        <!-- Desktop buttons -->
+        <div v-if="!$vuetify.display.mobile" class="d-flex">
           <v-btn
             variant="outlined"
             prepend-icon="mdi-content-save"
@@ -208,6 +210,27 @@ function formatDate(date: Date): string {
           >
             导入配置
           </v-btn>
+        </div>
+        
+        <!-- Mobile buttons -->
+        <div v-else class="d-flex">
+          <v-btn
+            icon="mdi-content-save"
+            variant="outlined"
+            @click="openSaveDialog"
+            class="mr-2"
+          />
+          <v-btn
+            icon="mdi-folder-open"
+            variant="outlined"
+            @click="openLoadDialog"
+            class="mr-2"
+          />
+          <v-btn
+            icon="mdi-import"
+            variant="outlined"
+            @click="openImportDialog"
+          />
         </div>
       </v-card-title>
 
