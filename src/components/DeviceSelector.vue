@@ -103,7 +103,7 @@ function onKeyDown(event: KeyboardEvent) {
 function highlightMatches(text: string): string {
   if (!searchPatterns.value.length) return text
   
-  let result = text
+  const result = text
   const upperText = text.toUpperCase()
   
   // Find all matches

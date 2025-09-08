@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, onMounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
 import { useModuleStore } from '@/stores/module'
@@ -32,7 +32,6 @@ const uciDefaultsContent = ref('')
 const rootfsSizeMb = ref<number | null>(null)
 const repositories = ref<Array<{ name: string; url: string; loading?: boolean; packages?: OpenWrtPackage[]; error?: string }>>([])
 const repositoryKeys = ref<string[]>([])
-const isExpanded = ref(false)
 
 // Build state
 const buildStatus = ref<AsuBuildResponse | null>(null)
@@ -76,10 +75,6 @@ const finalPackages = computed(() => {
   )
 })
 
-const buildProgress = computed(() => {
-  if (!buildStatus.value) return 0
-  return asuService.getProgressPercentage(buildStatus.value.status)
-})
 
 const statusMessage = computed(() => {
   if (!buildStatus.value) return ''
@@ -140,20 +135,20 @@ function getCurrentCustomBuildConfig() {
 }
 
 // Apply custom build configuration from loaded config
-function applyCustomBuildConfig(customBuild: any) {
-  if (customBuild.packageConfiguration) {
-    packageStore.setPackageConfiguration(customBuild.packageConfiguration)
+function applyCustomBuildConfig(customBuild: Record<string, unknown>) {
+  if (customBuild.packageConfiguration && typeof customBuild.packageConfiguration === 'object' && customBuild.packageConfiguration !== null) {
+    packageStore.setPackageConfiguration(customBuild.packageConfiguration as { addedPackages: string[]; removedPackages: string[] })
   }
-  if (customBuild.uciDefaults) {
+  if (customBuild.uciDefaults && typeof customBuild.uciDefaults === 'string') {
     uciDefaultsContent.value = customBuild.uciDefaults
   }
-  if (customBuild.rootfsSizeMb) {
+  if (customBuild.rootfsSizeMb && typeof customBuild.rootfsSizeMb === 'number') {
     rootfsSizeMb.value = customBuild.rootfsSizeMb
   }
-  if (customBuild.repositories) {
+  if (customBuild.repositories && Array.isArray(customBuild.repositories)) {
     repositories.value = [...customBuild.repositories]
   }
-  if (customBuild.repositoryKeys) {
+  if (customBuild.repositoryKeys && Array.isArray(customBuild.repositoryKeys)) {
     repositoryKeys.value = [...customBuild.repositoryKeys]
   }
 }
@@ -203,7 +198,19 @@ async function requestBuild() {
     // Prepare module data if any modules are selected and module management is enabled
     let modules = undefined
     if (config.enable_module_management && moduleStore.selectedModules.length > 0) {
-      const moduleData = new Map<string, any>()
+      interface ModuleData {
+        source_id: string
+        url: string
+        ref: string
+        resolved_sha: string
+        selected_modules: Array<{
+          module_id: string
+          parameters: { [key: string]: string }
+          user_downloads: { [key: string]: string }
+        }>
+      }
+      
+      const moduleData = new Map<string, ModuleData>()
       
       for (const { module, source, selection } of moduleStore.selectedModules) {
         if (!moduleData.has(source.id)) {
@@ -211,7 +218,7 @@ async function requestBuild() {
             source_id: source.id,
             url: source.url,
             ref: source.ref,
-            resolved_sha: source.resolvedSHA,
+            resolved_sha: source.resolvedSHA || '',
             selected_modules: []
           })
         }
@@ -401,14 +408,10 @@ function removeRepositoryKey(index: number) {
 // Package detail methods
 function showPackageDetails(packageName: string) {
   const packageInfo = packageStore.getPackageInfo(packageName)
-  selectedPackageDetail.value = packageInfo
+  selectedPackageDetail.value = packageInfo || null
   showPackageDetail.value = true
 }
 
-function closePackageDetail() {
-  showPackageDetail.value = false
-  selectedPackageDetail.value = null
-}
 
 
 // Cleanup
