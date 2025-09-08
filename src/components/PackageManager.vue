@@ -116,10 +116,12 @@ function clearAllPackages() {
 }
 
 // Auto-load packages when profile is loaded successfully
-watch(() => firmwareStore.selectedProfile, (newProfile) => {
-  if (newProfile && packageStore.totalPackages === 0) {
-    // Profile loaded successfully, auto-load packages
-    loadPackagesForCurrentDevice()
+watch(() => firmwareStore.selectedProfile, (newProfile, oldProfile) => {
+  if (newProfile && newProfile !== oldProfile) {
+    // Profile changed, auto-load packages if not already loading
+    if (!packageStore.isLoading) {
+      loadPackagesForCurrentDevice()
+    }
   }
 })
 </script>
