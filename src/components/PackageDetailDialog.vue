@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import { ref, defineAsyncComponent } from 'vue'
 import { packageManager } from '@/services/packageManager'
+import { usePackageStore } from '@/stores/package'
 import type { OpenWrtPackage } from '@/types/package'
+
+const packageStore = usePackageStore()
+
+// Async component to avoid circular dependency
+const AsyncPackageDetailDialog = defineAsyncComponent(() => import('./PackageDetailDialog.vue'))
 
 // Props
 defineProps<{
@@ -11,7 +18,12 @@ defineProps<{
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'show-dependency': [packageName: string]
 }>()
+
+// State for nested dependency dialog
+const showDependencyDetail = ref(false)
+const selectedDependencyDetail = ref<OpenWrtPackage | null>(null)
 
 function closeDialog() {
   emit('update:modelValue', false)
@@ -27,6 +39,19 @@ function getSectionName(section: string) {
 
 function getFeedName(feedName: string) {
   return packageManager.getFeedDisplayName(feedName)
+}
+
+function showDependencyDetails(dependencyName: string) {
+  const packageInfo = packageStore.getPackageInfo(dependencyName)
+  if (packageInfo) {
+    selectedDependencyDetail.value = packageInfo
+    showDependencyDetail.value = true
+  }
+}
+
+function closeDependencyDetail() {
+  showDependencyDetail.value = false
+  selectedDependencyDetail.value = null
 }
 </script>
 
@@ -123,7 +148,17 @@ function getFeedName(feedName: string) {
               size="x-small"
               variant="outlined"
               class="ma-1"
+              :color="packageStore.getPackageInfo(dep) ? 'primary' : 'default'"
+              :style="packageStore.getPackageInfo(dep) ? 'cursor: pointer' : ''"
+              @click="packageStore.getPackageInfo(dep) ? showDependencyDetails(dep) : null"
             >
+              <v-icon 
+                v-if="packageStore.getPackageInfo(dep)" 
+                size="x-small" 
+                class="mr-1"
+              >
+                mdi-information-outline
+              </v-icon>
               {{ dep }}
             </v-chip>
           </div>
@@ -132,4 +167,11 @@ function getFeedName(feedName: string) {
 
     </v-card>
   </v-dialog>
+
+  <!-- Nested Dependency Detail Dialog -->
+  <AsyncPackageDetailDialog 
+    v-if="showDependencyDetail"
+    v-model="showDependencyDetail"
+    :package-detail="selectedDependencyDetail"
+  />
 </template>
