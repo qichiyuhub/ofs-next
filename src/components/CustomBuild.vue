@@ -11,6 +11,7 @@ import type { OpenWrtPackage } from '@/types/package'
 import ModuleSource from './ModuleSource.vue'
 import ModuleSelector from './ModuleSelector.vue'
 import PackageManager from './PackageManager.vue'
+import PackageDetailDialog from './PackageDetailDialog.vue'
 
 // Define emits
 const emit = defineEmits<{
@@ -42,6 +43,10 @@ const pollInterval = ref<number | null>(null)
 // Validation error dialog
 const showValidationErrorDialog = ref(false)
 const validationErrors = ref<{ [moduleKey: string]: string[] }>({})
+
+// Package detail dialog
+const showPackageDetail = ref(false)
+const selectedPackageDetail = ref<OpenWrtPackage | null>(null)
 
 // Computed
 const isAsuAvailable = computed(() => asuService.isAvailable())
@@ -393,6 +398,18 @@ function removeRepositoryKey(index: number) {
   repositoryKeys.value.splice(index, 1)
 }
 
+// Package detail methods
+function showPackageDetails(packageName: string) {
+  const packageInfo = packageStore.getPackageInfo(packageName)
+  selectedPackageDetail.value = packageInfo
+  showPackageDetail.value = true
+}
+
+function closePackageDetail() {
+  showPackageDetail.value = false
+  selectedPackageDetail.value = null
+}
+
 
 // Cleanup
 onUnmounted(() => {
@@ -666,7 +683,18 @@ onUnmounted(() => {
                 size="small"
                 variant="outlined"
                 class="ma-1"
+                :color="pkg.startsWith('-') ? 'error' : 'primary'"
+                :class="{ 'text-decoration-line-through': pkg.startsWith('-') }"
+                @click="packageStore.getPackageInfo(pkg.replace(/^-/, '')) ? showPackageDetails(pkg.replace(/^-/, '')) : null"
+                :style="packageStore.getPackageInfo(pkg.replace(/^-/, '')) ? 'cursor: pointer' : ''"
               >
+                <v-icon 
+                  v-if="packageStore.getPackageInfo(pkg.replace(/^-/, ''))" 
+                  size="x-small" 
+                  class="mr-1"
+                >
+                  mdi-information-outline
+                </v-icon>
                 {{ pkg }}
               </v-chip>
             </div>
@@ -751,6 +779,12 @@ onUnmounted(() => {
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <!-- Package Detail Dialog -->
+  <PackageDetailDialog 
+    v-model="showPackageDetail"
+    :package-detail="selectedPackageDetail"
+  />
 </template>
 
 <style scoped>

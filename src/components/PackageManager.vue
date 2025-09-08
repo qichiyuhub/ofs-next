@@ -4,6 +4,7 @@ import { usePackageStore } from '@/stores/package'
 import { useFirmwareStore } from '@/stores/firmware'
 import { packageManager } from '@/services/packageManager'
 import type { OpenWrtPackage } from '@/types/package'
+import PackageDetailDialog from './PackageDetailDialog.vue'
 
 const packageStore = usePackageStore()
 const firmwareStore = useFirmwareStore()
@@ -114,9 +115,10 @@ function clearAllPackages() {
   packageStore.clearAllPackages()
 }
 
-// Auto-load packages when device changes
-watch(() => firmwareStore.selectedDevice, (newDevice) => {
-  if (newDevice && packageStore.totalPackages === 0) {
+// Auto-load packages when profile is loaded successfully
+watch(() => firmwareStore.selectedProfile, (newProfile) => {
+  if (newProfile && packageStore.totalPackages === 0) {
+    // Profile loaded successfully, auto-load packages
     loadPackagesForCurrentDevice()
   }
 })
@@ -468,107 +470,10 @@ watch(() => firmwareStore.selectedDevice, (newDevice) => {
     </v-dialog>
 
     <!-- Package Detail Dialog -->
-    <v-dialog v-model="showPackageDetail" max-width="600px" scrollable>
-      <v-card v-if="selectedPackageDetail">
-        <v-card-title class="d-flex align-center">
-          <v-icon icon="mdi-package-variant" class="mr-2" />
-          {{ selectedPackageDetail.name }}
-          <v-spacer />
-          <v-btn
-            icon="mdi-close"
-            variant="text"
-            size="small"
-            @click="closePackageDetail"
-          />
-        </v-card-title>
-
-        <v-card-text>
-          <div class="mb-4">
-            <h4 class="text-subtitle-1 mb-2">描述</h4>
-            <p class="text-body-2">{{ selectedPackageDetail.description }}</p>
-          </div>
-
-          <!-- 第一行：版本 + 许可证 -->
-          <v-row>
-            <v-col cols="6">
-              <div class="mb-3">
-                <h4 class="text-subtitle-2 mb-1">版本</h4>
-                <v-chip size="small" color="primary" variant="tonal">
-                  v{{ selectedPackageDetail.version }}
-                </v-chip>
-              </div>
-            </v-col>
-            <v-col cols="6">
-              <div class="mb-3">
-                <h4 class="text-subtitle-2 mb-1">许可证</h4>
-                <span class="text-body-2">{{ selectedPackageDetail.license || '未知' }}</span>
-              </div>
-            </v-col>
-          </v-row>
-
-          <!-- 第二行：分类 + 来源 -->
-          <v-row>
-            <v-col cols="6">
-              <div class="mb-3">
-                <h4 class="text-subtitle-2 mb-1">分类</h4>
-                <v-chip size="small" color="secondary" variant="tonal">
-                  {{ getSectionName(selectedPackageDetail.section) }}
-                </v-chip>
-              </div>
-            </v-col>
-            <v-col cols="6">
-              <div class="mb-3">
-                <h4 class="text-subtitle-2 mb-1">来源</h4>
-                <v-chip size="small" color="info" variant="tonal">
-                  {{ getFeedName(selectedPackageDetail.source || '') }}
-                </v-chip>
-              </div>
-            </v-col>
-          </v-row>
-
-          <!-- 第三行：下载大小 + 安装大小 -->
-          <v-row>
-            <v-col cols="6">
-              <div class="mb-3">
-                <h4 class="text-subtitle-2 mb-1">下载大小</h4>
-                <span class="text-body-2">{{ formatSize(selectedPackageDetail.size) }}</span>
-              </div>
-            </v-col>
-            <v-col cols="6">
-              <div class="mb-3">
-                <h4 class="text-subtitle-2 mb-1">安装大小</h4>
-                <span class="text-body-2">{{ formatSize(selectedPackageDetail.installedSize || 0) }}</span>
-              </div>
-            </v-col>
-          </v-row>
-
-          <!-- 主页链接 -->
-          <div v-if="selectedPackageDetail.url" class="mb-3">
-            <h4 class="text-subtitle-2 mb-1">主页</h4>
-            <a :href="selectedPackageDetail.url" target="_blank" class="text-primary">
-              {{ selectedPackageDetail.url }}
-            </a>
-          </div>
-
-          <!-- 最后一行：依赖 -->
-          <div v-if="selectedPackageDetail.depends?.length" class="mb-3">
-            <h4 class="text-subtitle-2 mb-2">依赖</h4>
-            <div class="d-flex flex-wrap">
-              <v-chip
-                v-for="dep in selectedPackageDetail.depends"
-                :key="dep"
-                size="x-small"
-                variant="outlined"
-                class="ma-1"
-              >
-                {{ dep }}
-              </v-chip>
-            </div>
-          </div>
-        </v-card-text>
-
-      </v-card>
-    </v-dialog>
+    <PackageDetailDialog 
+      v-model="showPackageDetail"
+      :package-detail="selectedPackageDetail"
+    />
   </v-card>
 </template>
 
