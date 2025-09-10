@@ -374,6 +374,7 @@ export class PackageManagerService {
    * Get section display names
    */
   getSectionDisplayName(section: string): string {
+    if (!section) return '无'
     const sectionNames: { [key: string]: string } = {
       'admin': '系统管理',
       'base': '基础系统',
