@@ -2,6 +2,10 @@
 
 import type { OpenWrtPackage, PackageFeed, PackageSearchFilter } from '@/types/package'
 import { config } from '@/config'
+// Import ADB parser for apk v3 package index
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - JS module export without types
+import { parsePackagesAdbFromBytes } from '@/tools/adbdump.js'
 
 export class PackageManagerService {
   private readonly ARCHITECTURE_FEEDS = ['base', 'luci', 'packages', 'telephony']
@@ -12,23 +16,25 @@ export class PackageManagerService {
    */
   generateFeedUrls(version: string, architecture: string, target?: string, kernelInfo?: { version: string; release: string; vermagic: string }): string[] {
     const urls: string[] = []
-    
+    const baseUrl = this.isSnapshot(version) ? `${config.image_url}/snapshots` : `${config.image_url}/releases/${version}`
+    const fileName = this.isApkVersion(version) ? 'packages.adb' : 'Packages'
+
     // Architecture-specific feeds
-    const archUrl = `${config.image_url}/releases/${version}/packages/${architecture}`
+    const archUrl = `${baseUrl}/packages/${architecture}`
     this.ARCHITECTURE_FEEDS.forEach(feed => {
-      urls.push(`${archUrl}/${feed}/Packages`)
+      urls.push(`${archUrl}/${feed}/${fileName}`)
     })
     
     // Target-specific feeds (if target is provided)
     if (target) {
-      const targetUrl = `${config.image_url}/releases/${version}/targets/${target}`
+      const targetUrl = `${baseUrl}/targets/${target}`
       
       // Target packages
-      urls.push(`${targetUrl}/packages/Packages`)
+      urls.push(`${targetUrl}/packages/${fileName}`)
       
       // Kernel modules (if kernel info is provided)
       if (kernelInfo) {
-        urls.push(`${targetUrl}/kmods/${kernelInfo.version}-${kernelInfo.release}-${kernelInfo.vermagic}/Packages`)
+        urls.push(`${targetUrl}/kmods/${kernelInfo.version}-${kernelInfo.release}-${kernelInfo.vermagic}/${fileName}`)
       }
     }
     
@@ -40,7 +46,8 @@ export class PackageManagerService {
    */
   async fetchKernelInfo(version: string, target: string): Promise<{ version: string; release: string; vermagic: string } | null> {
     try {
-      const profilesUrl = `${config.image_url}/releases/${version}/targets/${target}/profiles.json`
+      const baseUrl = this.isSnapshot(version) ? `${config.image_url}/snapshots` : `${config.image_url}/releases/${version}`
+      const profilesUrl = `${baseUrl}/targets/${target}/profiles.json`
       const response = await fetch(profilesUrl)
       if (!response.ok) {
         throw new Error(`Failed to fetch profiles: ${response.statusText}`)
@@ -74,8 +81,15 @@ export class PackageManagerService {
         throw new Error(`Failed to fetch packages: ${response.statusText}`)
       }
 
-      const packagesText = await response.text()
-      return this.parsePackagesFile(packagesText, feedName)
+      // Detect APK v3 ADB index by filename
+      if (feedUrl.toLowerCase().endsWith('packages.adb')) {
+        const buf = await response.arrayBuffer()
+        const decoded: { packages: any[] } = await parsePackagesAdbFromBytes(new Uint8Array(buf))
+        return this.mapAdbPackages(decoded.packages || [], feedName)
+      } else {
+        const packagesText = await response.text()
+        return this.parsePackagesFile(packagesText, feedName)
+      }
     } catch (error) {
       console.error(`Error fetching packages from ${feedUrl}:`, error)
       throw error
@@ -170,6 +184,56 @@ export class PackageManagerService {
   }
 
   /**
+   * Map APK v3 ADB package entries to OpenWrtPackage
+   */
+  private mapAdbPackages(entries: any[], source: string): OpenWrtPackage[] {
+    const out: OpenWrtPackage[] = []
+    for (const e of entries) {
+      if (!e || !e.name || !e.version || !e.arch) continue
+      const name: string = e.name
+      const version: string = e.version
+      const architecture: string = e.arch
+      const size: number = Number(e['file-size'] || 0)
+      const installedSize: number = Number(e['installed-size'] || 0)
+      const description: string = e.description || ''
+      const license: string | undefined = e.license
+      const url: string | undefined = e.url
+      const sha256sum: string = e.hashes || ''
+      const dependsRaw: string[] = Array.isArray(e.depends) ? e.depends : []
+      const depends: string[] = dependsRaw
+        .map(d => this.cleanAdbDependency(String(d)))
+        .filter(d => d && d !== 'libc')
+
+      // ADB index does not include section/filename; provide sensible defaults
+      const section = ''
+      const filename = `${name}_${version}_${architecture}.apk`
+
+      out.push({
+        name,
+        version,
+        depends,
+        license,
+        section,
+        url,
+        architecture,
+        installedSize,
+        filename,
+        size,
+        sha256sum,
+        description,
+        source
+      })
+    }
+    return out
+  }
+
+  /** Strip version/op from ADB dependency strings like 'foo>=1.2' or '!bar' */
+  private cleanAdbDependency(dep: string): string {
+    const m = dep.replace(/^!/, '').match(/^([^<>=~\s]+)/)
+    return m ? m[1].trim() : dep.trim()
+  }
+
+  /**
    * Parse dependency string
    */
   private parseDependencies(dependsStr: string): string[] {
@@ -185,6 +249,15 @@ export class PackageManagerService {
         return match ? match[1].trim() : dep
       })
       .filter(dep => dep)
+  }
+
+  private isSnapshot(version: string): boolean {
+    return version === 'SNAPSHOT' || version.endsWith('-SNAPSHOT')
+  }
+
+  private isApkVersion(version: string): boolean {
+    const list = (config as any).apk_versions as string[] | undefined
+    return Array.isArray(list) ? list.includes(version) : false
   }
 
   /**

@@ -29,6 +29,9 @@ export interface Config {
 
   // Enable/disable module management feature (optional)
   enable_module_management?: boolean
+
+  // Versions that use apk v3 package index (packages.adb)
+  apk_versions?: string[]
 }
 
 export const config: Config = {
@@ -62,4 +65,6 @@ export const config: Config = {
 
   // Enable/disable module management feature (optional)
   enable_module_management: false,
+  // Treat these versions as using apk v3 index
+  apk_versions: ["SNAPSHOT"]
 }

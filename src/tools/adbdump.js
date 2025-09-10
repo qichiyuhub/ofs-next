@@ -300,7 +300,14 @@ function parsePkginfo(rdr, tag) {
 async function dumpFile(file, pretty) {
   const buf = new Uint8Array(await file.arrayBuffer());
   dlog(`file: ${file.name} size=${buf.length}`);
-  const raw = await maybeDecompress(buf);
+  const outObj = await parsePackagesAdbFromBytes(buf);
+  return pretty ? JSON.stringify(outObj, null, 2) : JSON.stringify(outObj);
+}
+
+// Export a programmatic parser for integration in the app
+export async function parsePackagesAdbFromBytes(buf) {
+  const u8 = (buf instanceof Uint8Array) ? buf : new Uint8Array(buf);
+  const raw = await maybeDecompress(u8);
   const { schema, adbPayload } = parseADBBlocks(raw);
   if (schema !== ADB_SCHEMA_INDEX) throw new Error(`Unsupported schema: 0x${schema.toString(16)}`);
   const rdr = new ADBReader(adbPayload);
@@ -324,26 +331,30 @@ async function dumpFile(file, pretty) {
     }
   }
   outObj.packages = pkgs;
-  return pretty ? JSON.stringify(outObj, null, 2) : JSON.stringify(outObj);
+  return outObj;
 }
 
-// Wire up UI
-const elFile = document.getElementById('file');
-const elRun = document.getElementById('run');
-const elPretty = document.getElementById('pretty');
-const elOut = document.getElementById('out');
+// Wire up UI (only if elements exist)
+if (typeof document !== 'undefined') {
+  const elFile = document.getElementById('file');
+  const elRun = document.getElementById('run');
+  const elPretty = document.getElementById('pretty');
+  const elOut = document.getElementById('out');
 
-elRun.addEventListener('click', async () => {
-  const elLog = document.getElementById('log');
-  if (elLog) elLog.textContent = '';
-  elOut.textContent = '';
-  const f = elFile.files && elFile.files[0];
-  if (!f) { elOut.textContent = 'Please select a .adb file'; return; }
-  try {
-    const json = await dumpFile(f, elPretty.checked);
-    elOut.textContent = json;
-  } catch (e) {
-    elOut.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
-    if (e && e.stack && isDebug()) dlog(e.stack);
+  if (elRun && elFile && elOut && elPretty) {
+    elRun.addEventListener('click', async () => {
+      const elLog = document.getElementById('log');
+      if (elLog) elLog.textContent = '';
+      elOut.textContent = '';
+      const f = elFile.files && elFile.files[0];
+      if (!f) { elOut.textContent = 'Please select a .adb file'; return; }
+      try {
+        const json = await dumpFile(f, elPretty.checked);
+        elOut.textContent = json;
+      } catch (e) {
+        elOut.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
+        if (e && e.stack && isDebug()) dlog(e.stack);
+      }
+    });
   }
-});
+}
