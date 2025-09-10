@@ -84,9 +84,6 @@ function formatDate(date: Date | undefined): string {
   }).format(date)
 }
 
-function getShortCommit(sha: string | undefined): string {
-  return sha ? sha.substring(0, 7) : 'unknown'
-}
 </script>
 
 <template>
@@ -167,9 +164,6 @@ function getShortCommit(sha: string | undefined): string {
               </div>
               <div class="text-body-2 mb-2">
                 <strong>引用:</strong> {{ source.ref }}
-                <v-chip size="x-small" class="ml-2" color="primary">
-                  {{ getShortCommit(source.resolvedSHA) }}
-                </v-chip>
               </div>
               <div class="text-body-2 mb-2">
                 <strong>模块数量:</strong> {{ source.modules.length }}
@@ -243,9 +237,9 @@ function getShortCommit(sha: string | undefined): string {
                 <ul>
                   <li>分支名: main, develop, feature/xxx</li>
                   <li>标签名: v1.0.0, release-2024.1</li>
-                  <li>提交 SHA: a1b2c3d4e5f6...</li>
+                  <li>提交: 提交的 SHA 值</li>
                 </ul>
-                <p class="mt-2">系统会自动解析引用为具体的提交 SHA 以确保版本一致性。</p>
+                <p class="mt-2">保持用户指定的引用格式，构建时由后端解析。</p>
               </div>
             </v-alert>
           </v-form>

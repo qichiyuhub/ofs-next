@@ -17,7 +17,6 @@ export interface AsuBuildRequest {
     source_id: string
     url: string
     ref: string
-    resolved_sha: string
     selected_modules: {
       module_id: string
       parameters: { [key: string]: string }

@@ -79,8 +79,7 @@ export interface ModuleSource {
   id: string
   name: string
   url: string
-  ref: string  // branch, tag, or commit SHA
-  resolvedSHA?: string  // resolved commit SHA
+  ref: string  // branch, tag, or commit
   modules: Module[]
   lastUpdated?: Date
 }

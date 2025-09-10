@@ -202,7 +202,6 @@ async function requestBuild() {
         source_id: string
         url: string
         ref: string
-        resolved_sha: string
         selected_modules: Array<{
           module_id: string
           parameters: { [key: string]: string }
@@ -218,7 +217,6 @@ async function requestBuild() {
             source_id: source.id,
             url: source.url,
             ref: source.ref,
-            resolved_sha: source.resolvedSHA || '',
             selected_modules: []
           })
         }

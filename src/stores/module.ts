@@ -64,7 +64,6 @@ export const useModuleStore = defineStore('module', () => {
         name,
         url,
         ref,
-        resolvedSHA: ref,  // Just use the ref as-is
         modules,
         lastUpdated: new Date()
       }

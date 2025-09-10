@@ -119,8 +119,7 @@ export const useConfigStore = defineStore('config', () => {
               id: source.id,
               name: source.name,
               url: source.url,
-              ref: source.ref,
-              resolvedSHA: source.resolvedSHA
+              ref: source.ref
             })),
             selections: moduleStore.selections.map(selection => ({
               sourceId: selection.sourceId,

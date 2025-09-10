@@ -39,7 +39,6 @@ export interface SavedConfiguration {
       name: string
       url: string
       ref: string
-      resolvedSHA?: string
     }>
     selections: Array<{
       sourceId: string
