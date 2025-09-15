@@ -26,13 +26,24 @@ watch(() => firmware.currentVersion, (newVersion) => {
 })
 
 // Watch for model selection
-watch(selectedModel, (newModel, oldModel) => {
+watch(selectedModel, async (newModel, oldModel) => {
   if (newModel) {
-    firmware.selectDevice(newModel)
-    
     // Clear package selections when switching devices to avoid architecture conflicts
     if (oldModel && oldModel !== newModel) {
       packageStore.clearAllPackages()
+    }
+
+    // Select device and wait for profile to load
+    await firmware.selectDevice(newModel)
+
+    // Auto-load packages immediately after selecting the model
+    const arch = firmware.selectedProfile?.arch_packages
+    if (arch && firmware.currentVersion && firmware.selectedDevice?.target) {
+      await packageStore.loadPackagesForDevice(
+        firmware.currentVersion,
+        arch,
+        firmware.selectedDevice.target
+      )
     }
   } else {
     firmware.selectedDevice = null
