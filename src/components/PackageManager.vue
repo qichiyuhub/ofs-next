@@ -200,15 +200,7 @@ function getPackageBackgroundClass(packageName: string): string {
   }
 }
 
-// Auto-load packages when profile is loaded successfully
-watch(() => firmwareStore.selectedProfile, (newProfile, oldProfile) => {
-  if (newProfile && newProfile !== oldProfile) {
-    // Profile changed, auto-load packages if not already loading
-    if (!packageStore.isLoading) {
-      loadPackagesForCurrentDevice()
-    }
-  }
-})
+// Note: Package loading is triggered by FirmwareSelector after device selection
 </script>
 
 <template>

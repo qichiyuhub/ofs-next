@@ -24,51 +24,21 @@ export class PackageManagerService {
     this.ARCHITECTURE_FEEDS.forEach(feed => {
       urls.push(`${archUrl}/${feed}/${fileName}`)
     })
-    
+
     // Target-specific feeds (if target is provided)
     if (target) {
       const targetUrl = `${baseUrl}/targets/${target}`
-      
+
       // Target packages
       urls.push(`${targetUrl}/packages/${fileName}`)
-      
+
       // Kernel modules (if kernel info is provided)
       if (kernelInfo) {
         urls.push(`${targetUrl}/kmods/${kernelInfo.version}-${kernelInfo.release}-${kernelInfo.vermagic}/${fileName}`)
       }
     }
-    
+
     return urls
-  }
-
-  /**
-   * Fetch kernel information from profiles.json
-   */
-  async fetchKernelInfo(version: string, target: string): Promise<{ version: string; release: string; vermagic: string } | null> {
-    try {
-      const baseUrl = this.isSnapshot(version) ? `${config.image_url}/snapshots` : `${config.image_url}/releases/${version}`
-      const profilesUrl = `${baseUrl}/targets/${target}/profiles.json`
-      const response = await fetch(profilesUrl)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch profiles: ${response.statusText}`)
-      }
-
-      const data = await response.json() as { linux_kernel?: { version: string; release: string; vermagic: string } }
-      const kernelInfo = data.linux_kernel
-      
-      if (kernelInfo && kernelInfo.version && kernelInfo.release && kernelInfo.vermagic) {
-        return {
-          version: kernelInfo.version,
-          release: kernelInfo.release,
-          vermagic: kernelInfo.vermagic
-        }
-      }
-      
-      return null
-    } catch (error) {
-      console.error(`Error fetching kernel info for ${target}:`, error)
-      return null
-    }
   }
 
   /**
@@ -269,7 +239,7 @@ export class PackageManagerService {
     // Text search
     if (filter.query) {
       const query = filter.query.toLowerCase()
-      results = results.filter(pkg => 
+      results = results.filter(pkg =>
         pkg.name.toLowerCase().includes(query) ||
         pkg.description.toLowerCase().includes(query)
       )
@@ -318,7 +288,7 @@ export class PackageManagerService {
 
       visited.add(pkgName)
       const pkg = packages.find(p => p.name === pkgName)
-      
+
       if (pkg && pkg.depends) {
         for (const dep of pkg.depends) {
           if (!visited.has(dep)) {

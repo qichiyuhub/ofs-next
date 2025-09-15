@@ -87,11 +87,9 @@ export const usePackageStore = defineStore('package', () => {
     error.value = ''
 
     try {
-      // First, get kernel info if target is provided
-      let kernelInfo: { version: string; release: string; vermagic: string } | null = null
-      if (target) {
-        kernelInfo = await packageManager.fetchKernelInfo(version, target)
-      }
+      // First, try kernel info from selectedProfile to avoid extra profiles.json requests
+      const kernelInfo: { version: string; release: string; vermagic: string } | null =
+        (firmwareStore.selectedProfile as any)?.linux_kernel || null
 
       // Generate feed URLs with optional target and kernel info
       const feedUrls = packageManager.generateFeedUrls(version, architecture, target, kernelInfo || undefined)

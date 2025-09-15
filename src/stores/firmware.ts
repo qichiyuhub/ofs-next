@@ -166,6 +166,7 @@ export const useFirmwareStore = defineStore('firmware', () => {
           build_at: profiles.build_at,
           default_packages: profiles.default_packages,
           arch_packages: profiles.arch_packages,
+          linux_kernel: (profiles as any).linux_kernel,
           target: device.target
         }
         selectedDevice.value = device

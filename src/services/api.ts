@@ -14,6 +14,11 @@ export interface DeviceProfile {
   build_at: string
   default_packages: string[]
   arch_packages?: string
+  linux_kernel?: {
+    version: string
+    release: string
+    vermagic: string
+  }
   manifest?: any
 }
 
@@ -32,6 +37,11 @@ export interface ProfilesResponse {
   version_code: string
   build_at: string
   arch_packages: string
+  linux_kernel?: {
+    version: string
+    release: string
+    vermagic: string
+  }
   profiles: {
     [key: string]: {
       id: string
