@@ -291,7 +291,7 @@ function startPolling(requestHash: string) {
       stopPolling()
       emit('build-error', `构建状态检查失败: ${error}`)
     }
-  }, 2000)
+  }, 5000)
 }
 
 function stopPolling() {
