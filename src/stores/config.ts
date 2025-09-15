@@ -191,7 +191,7 @@ export const useConfigStore = defineStore('config', () => {
         )
         
         // Load package feeds if not loaded and profile is available
-        if (packageStore.totalPackages === 0 && firmwareStore.selectedProfile && firmwareStore.selectedProfile.arch_packages) {
+        if (packageStore.totalPackages === 0 && firmwareStore.selectedProfile) {
           // Use arch_packages from profile data
           await packageStore.loadPackagesForDevice(
             savedConfig.device.version,
