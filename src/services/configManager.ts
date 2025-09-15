@@ -294,7 +294,8 @@ export class ConfigurationManager {
     if (!data.device || typeof data.device !== 'object') {
       errors.push('缺少设备配置')
     } else {
-      const required = ['model', 'target', 'profile', 'version']
+      // Profile is derived from target + model; do not require it here
+      const required = ['model', 'target', 'version']
       for (const field of required) {
         if (!data.device[field]) {
           errors.push(`缺少设备配置字段: ${field}`)
@@ -305,7 +306,9 @@ export class ConfigurationManager {
     if (!data.customBuild || typeof data.customBuild !== 'object') {
       errors.push('缺少自定义构建配置')
     } else {
-      if (!Array.isArray(data.customBuild.packages)) {
+      // Expect new packageConfiguration shape with added/removed arrays
+      const pc = data.customBuild.packageConfiguration
+      if (!pc || typeof pc !== 'object' || !Array.isArray(pc.addedPackages) || !Array.isArray(pc.removedPackages)) {
         errors.push('软件包配置格式错误')
       }
       if (!Array.isArray(data.customBuild.repositories)) {
@@ -316,14 +319,17 @@ export class ConfigurationManager {
       }
     }
 
-    if (!data.modules || typeof data.modules !== 'object') {
-      errors.push('缺少模块配置')
-    } else {
-      if (!Array.isArray(data.modules.sources)) {
-        errors.push('模块源配置格式错误')
-      }
-      if (!Array.isArray(data.modules.selections)) {
-        errors.push('模块选择配置格式错误')
+    // Modules are optional; validate only if provided
+    if (data.modules !== undefined) {
+      if (!data.modules || typeof data.modules !== 'object') {
+        errors.push('模块配置格式错误')
+      } else {
+        if (!Array.isArray(data.modules.sources)) {
+          errors.push('模块源配置格式错误')
+        }
+        if (!Array.isArray(data.modules.selections)) {
+          errors.push('模块选择配置格式错误')
+        }
       }
     }
 
