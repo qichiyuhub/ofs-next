@@ -3,8 +3,8 @@ export interface DeviceProfile {
   target: string
   titles: Array<{
     title?: string
-    vendor: string
-    model: string
+    vendor?: string
+    model?: string
     variant?: string
   }>
   images: DeviceImage[]
@@ -13,8 +13,8 @@ export interface DeviceProfile {
   version_code: string
   build_at: string
   default_packages: string[]
-  arch_packages: string
-  linux_kernel: {
+  arch_packages?: string
+  linux_kernel?: {
     version: string
     release: string
     vermagic: string
@@ -37,7 +37,7 @@ export interface ProfilesResponse {
   version_code: string
   build_at: string
   arch_packages: string
-  linux_kernel: {
+  linux_kernel?: {
     version: string
     release: string
     vermagic: string
@@ -48,8 +48,8 @@ export interface ProfilesResponse {
       images: DeviceImage[]
       titles: Array<{
         title?: string
-        vendor: string
-        model: string
+        vendor?: string
+        model?: string
         variant?: string
       }>
       device_packages: string[]

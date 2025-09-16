@@ -37,8 +37,8 @@ watch(selectedModel, async (newModel, oldModel) => {
     await firmware.selectDevice(newModel)
 
     // Auto-load packages immediately after selecting the model
-    if (firmware.selectedProfile && firmware.currentVersion && firmware.selectedDevice?.target) {
-      const arch = firmware.selectedProfile.arch_packages
+    const arch = firmware.selectedProfile?.arch_packages
+    if (arch && firmware.currentVersion && firmware.selectedDevice?.target) {
       await packageStore.loadPackagesForDevice(
         firmware.currentVersion,
         arch,

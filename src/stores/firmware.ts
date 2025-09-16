@@ -166,7 +166,7 @@ export const useFirmwareStore = defineStore('firmware', () => {
           build_at: profiles.build_at,
           default_packages: profiles.default_packages,
           arch_packages: profiles.arch_packages,
-          linux_kernel: profiles.linux_kernel,
+          linux_kernel: (profiles as any).linux_kernel,
           target: device.target
         }
         selectedDevice.value = device
@@ -201,7 +201,7 @@ export const useFirmwareStore = defineStore('firmware', () => {
     return result
   }
 
-  function getModelTitles(titles: Array<{title?: string, vendor: string, model: string, variant?: string}>): string[] {
+  function getModelTitles(titles: Array<{title?: string, vendor?: string, model?: string, variant?: string}>): string[] {
     return titles.map((e) => {
       if (e.title) {
         return e.title

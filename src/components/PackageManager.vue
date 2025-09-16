@@ -111,14 +111,16 @@ async function loadPackagesForCurrentDevice() {
 }
 
 function getDeviceArchitecture(): string | null {
-  // 选中 profile 后一定有 arch_packages
-  if (firmwareStore.selectedProfile) {
+  // Use arch_packages from selected profile if available
+  if (firmwareStore.selectedProfile?.arch_packages) {
     return firmwareStore.selectedProfile.arch_packages
   }
-  // 未选中 profile 时提示
+  
+  // Fallback: warn if profile not available
   if (firmwareStore.selectedDevice) {
     console.warn(`Profile not loaded for device: ${firmwareStore.selectedDevice.title}, cannot determine architecture`)
   }
+  
   return null
 }
 
