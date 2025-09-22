@@ -480,29 +480,6 @@ onUnmounted(() => {
               </v-btn>
             </div>
           </div>
-          
-          <!-- Build Logs -->
-          <div v-if="buildStatus.stdout || buildStatus.stderr" class="mt-3">
-            <v-expansion-panels variant="accordion" class="mt-2">
-              <v-expansion-panel v-if="buildStatus.stderr">
-                <v-expansion-panel-title>
-                  <code>STDERR</code>
-                </v-expansion-panel-title>
-                <v-expansion-panel-text>
-                  <pre class="build-log">{{ buildStatus.stderr }}</pre>
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-              
-              <v-expansion-panel v-if="buildStatus.stdout">
-                <v-expansion-panel-title>
-                  <code>STDOUT</code>
-                </v-expansion-panel-title>
-                <v-expansion-panel-text>
-                  <pre class="build-log">{{ buildStatus.stdout }}</pre>
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
-          </div>
         </v-alert>
 
         <!-- Build Error -->
@@ -724,6 +701,34 @@ onUnmounted(() => {
           >
             {{ i18n.t('tr-request-build', '请求构建') }}
           </v-btn>
+        </div>
+
+        <!-- Build Logs -->
+        <div v-if="buildStatus && (buildStatus.stdout || buildStatus.stderr)" class="mt-6">
+          <v-divider class="mb-4" />
+          <div class="d-flex align-center mb-2">
+            <v-icon icon="mdi-text-box-outline" size="small" class="mr-2" />
+            <span class="text-subtitle2">构建日志</span>
+          </div>
+          <v-expansion-panels variant="accordion">
+            <v-expansion-panel v-if="buildStatus.stderr">
+              <v-expansion-panel-title>
+                <code>STDERR</code>
+              </v-expansion-panel-title>
+              <v-expansion-panel-text>
+                <pre class="build-log">{{ buildStatus.stderr }}</pre>
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+
+            <v-expansion-panel v-if="buildStatus.stdout">
+              <v-expansion-panel-title>
+                <code>STDOUT</code>
+              </v-expansion-panel-title>
+              <v-expansion-panel-text>
+                <pre class="build-log">{{ buildStatus.stdout }}</pre>
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
         </div>
       </v-expansion-panel-text>
     </v-expansion-panel>
