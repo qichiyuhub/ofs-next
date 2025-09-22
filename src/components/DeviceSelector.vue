@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
 
@@ -14,9 +15,16 @@ const emit = defineEmits<{
 const i18n = useI18nStore()
 const firmware = useFirmwareStore()
 
+type InputActivator = HTMLInputElement | (ComponentPublicInstance & {
+  focus?: () => void
+  blur?: () => void
+})
+
 const searchInput = ref('')
 const isMenuOpen = ref(false)
-const inputRef = ref<HTMLInputElement>()
+const inputRef = ref<InputActivator>()
+const menuContentRef = ref<HTMLElement | null>(null)
+let closeMenuTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Computed properties for search functionality
 const searchTerm = computed({
@@ -31,14 +39,14 @@ const searchPatterns = computed(() => {
 
 const filteredDevices = computed(() => {
   if (!searchPatterns.value.length) return []
-  
+
   const matches = firmware.deviceTitles.filter(title => {
     const upperTitle = title.toUpperCase()
-    return searchPatterns.value.every(pattern => 
+    return searchPatterns.value.every(pattern =>
       upperTitle.includes(pattern)
     )
   })
-  
+
   // Sort matches by relevance and limit to 15
   return matches
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
@@ -47,8 +55,55 @@ const filteredDevices = computed(() => {
 
 const hasMatches = computed(() => filteredDevices.value.length > 0)
 
+function getActivatorRoot(): HTMLElement | null {
+  const activator = inputRef.value
+  if (!activator) return null
+
+  if (activator instanceof HTMLElement) {
+    return activator
+  }
+
+  if (activator.$el instanceof HTMLElement) {
+    return activator.$el
+  }
+
+  return null
+}
+
+function isWithinMenu(element: HTMLElement | null): boolean {
+  const menuEl = menuContentRef.value
+  return !!(menuEl && element && menuEl.contains(element))
+}
+
+function isWithinInput(element: HTMLElement | null): boolean {
+  const inputRoot = getActivatorRoot()
+  return !!(inputRoot && element && inputRoot.contains(element))
+}
+
+function clearPendingClose() {
+  if (closeMenuTimeout !== null) {
+    clearTimeout(closeMenuTimeout)
+    closeMenuTimeout = null
+  }
+}
+
+function scheduleMenuClose() {
+  clearPendingClose()
+  closeMenuTimeout = setTimeout(() => {
+    isMenuOpen.value = false
+    closeMenuTimeout = null
+  }, 150)
+}
+
+function blurActivator() {
+  const activator = inputRef.value
+  if (activator && typeof activator.blur === 'function') {
+    activator.blur()
+  }
+}
+
 // Watch for changes in search input
-watch(searchInput, async (newValue) => {
+watch(searchInput, (newValue) => {
   if (newValue && firmware.deviceTitles.includes(newValue)) {
     // Exact match found
     searchTerm.value = newValue
@@ -69,20 +124,23 @@ watch(() => props.modelValue, (newValue) => {
 function selectDevice(deviceTitle: string) {
   searchInput.value = deviceTitle
   searchTerm.value = deviceTitle
+  clearPendingClose()
   isMenuOpen.value = false
 }
 
 function onInputFocus() {
+  clearPendingClose()
   if (searchInput.value && filteredDevices.value.length > 0) {
     isMenuOpen.value = true
   }
 }
 
-function onInputBlur() {
-  // Delay closing to allow for item selection
-  setTimeout(() => {
-    isMenuOpen.value = false
-  }, 200)
+function onInputBlur(event: FocusEvent) {
+  const nextElement = event.relatedTarget as HTMLElement | null
+  if (isWithinMenu(nextElement)) {
+    return
+  }
+  scheduleMenuClose()
 }
 
 function onKeyDown(event: KeyboardEvent) {
@@ -95,24 +153,24 @@ function onKeyDown(event: KeyboardEvent) {
     }
   } else if (event.key === 'Escape') {
     isMenuOpen.value = false
-    inputRef.value?.blur()
+    blurActivator()
   }
 }
 
 // Highlight matching text
 function highlightMatches(text: string): string {
   if (!searchPatterns.value.length) return text
-  
+
   const result = text
   const upperText = text.toUpperCase()
-  
+
   // Find all matches
   const matches: Array<{start: number, end: number}> = []
-  
+
   for (const pattern of searchPatterns.value) {
     let startIndex = 0
     let matchIndex = upperText.indexOf(pattern, startIndex)
-    
+
     while (matchIndex !== -1) {
       matches.push({
         start: matchIndex,
@@ -122,10 +180,10 @@ function highlightMatches(text: string): string {
       matchIndex = upperText.indexOf(pattern, startIndex)
     }
   }
-  
+
   // Sort matches by start position
   matches.sort((a, b) => a.start - b.start)
-  
+
   // Merge overlapping matches
   const mergedMatches: Array<{start: number, end: number}> = []
   for (const match of matches) {
@@ -140,20 +198,36 @@ function highlightMatches(text: string): string {
       }
     }
   }
-  
+
   // Build highlighted result
   let highlightedResult = ''
   let lastEnd = 0
-  
+
   for (const match of mergedMatches) {
     highlightedResult += text.substring(lastEnd, match.start)
     highlightedResult += `<strong>${text.substring(match.start, match.end)}</strong>`
     lastEnd = match.end
   }
   highlightedResult += text.substring(lastEnd)
-  
+
   return highlightedResult
 }
+
+function onMenuFocusIn() {
+  clearPendingClose()
+}
+
+function onMenuFocusOut(event: FocusEvent) {
+  const nextElement = event.relatedTarget as HTMLElement | null
+  if (isWithinMenu(nextElement) || isWithinInput(nextElement)) {
+    return
+  }
+  scheduleMenuClose()
+}
+
+onBeforeUnmount(() => {
+  clearPendingClose()
+})
 </script>
 
 <template>
@@ -180,24 +254,31 @@ function highlightMatches(text: string): string {
       max-height="300"
       :activator="inputRef"
     >
-      <v-list v-if="hasMatches" density="compact">
-        <v-list-item
-          v-for="device in filteredDevices"
-          :key="device"
-          @click="selectDevice(device)"
-          class="cursor-pointer"
-        >
-          <v-list-item-title>
-            <span v-html="highlightMatches(device)" />
-          </v-list-item-title>
-        </v-list-item>
-        
-        <v-list-item v-if="filteredDevices.length >= 15">
-          <v-list-item-title class="text-medium-emphasis">
-            ...
-          </v-list-item-title>
-        </v-list-item>
-      </v-list>
+      <div
+        v-if="hasMatches"
+        ref="menuContentRef"
+        @focusin="onMenuFocusIn"
+        @focusout="onMenuFocusOut"
+      >
+        <v-list density="compact">
+          <v-list-item
+            v-for="device in filteredDevices"
+            :key="device"
+            @click="selectDevice(device)"
+            class="cursor-pointer"
+          >
+            <v-list-item-title>
+              <span v-html="highlightMatches(device)" />
+            </v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item v-if="filteredDevices.length >= 15">
+            <v-list-item-title class="text-medium-emphasis">
+              ...
+            </v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </div>
     </v-menu>
   </div>
 </template>
