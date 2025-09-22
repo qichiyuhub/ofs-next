@@ -81,16 +81,44 @@ const finalPackages = computed(() => {
 
 const statusMessage = computed(() => {
   if (!buildStatus.value) return ''
-  
-  const statusMessages: Record<string, string> = {
-    'requested': i18n.t('tr-init', '已收到构建请求'),
-    'building': i18n.t('tr-building-image', '正在生成固件映像'),
-    'success': i18n.t('tr-build-successful', '构建成功'),
-    'failure': i18n.t('tr-build-failed', '构建失败'),
-    'no_sysupgrade': '设备不支持 sysupgrade'
+
+  const httpStatus = (buildStatus.value as (AsuBuildResponse & { httpStatus?: number })).httpStatus
+  if (httpStatus === 202) {
+    return `${i18n.t('tr-building-image', '正在生成固件映像')} · HTTP 202`
   }
-  
+  if (httpStatus === 200) {
+    return `${i18n.t('tr-build-successful', '构建成功')} · HTTP 200`
+  }
+  if (httpStatus && httpStatus >= 400) {
+    const detail = buildStatus.value.detail
+    const base = detail && detail.length > 0 ? detail : i18n.t('tr-build-failed', '构建失败')
+    return `${base} · HTTP ${httpStatus}`
+  }
+
+  const statusMessages: Record<string, string> = {
+    requested: i18n.t('tr-init', '已收到构建请求'),
+    building: i18n.t('tr-building-image', '正在生成固件映像'),
+    success: i18n.t('tr-build-successful', '构建成功'),
+    failure: i18n.t('tr-build-failed', '构建失败'),
+    no_sysupgrade: '设备不支持 sysupgrade'
+  }
+
   return statusMessages[buildStatus.value.status] || buildStatus.value.status
+})
+
+const statusAlertType = computed(() => {
+  if (!buildStatus.value) return 'info'
+  const httpStatus = (buildStatus.value as (AsuBuildResponse & { httpStatus?: number })).httpStatus
+  if (httpStatus === 200) return 'success'
+  if (httpStatus === 202 || httpStatus === undefined || httpStatus === null) {
+    // fall back to status field when code missing
+    const status = buildStatus.value.status
+    if (status === 'success') return 'success'
+    if (status === 'failure') return 'error'
+    return 'info'
+  }
+  if (httpStatus >= 400) return 'error'
+  return 'info'
 })
 
 const canBuild = computed(() => {
@@ -673,8 +701,7 @@ onUnmounted(() => {
         <!-- Build Status -->
         <div v-if="buildStatus" class="mt-6">
           <v-alert
-            :type="buildStatus.status === 'success' ? 'success' : 
-                  buildStatus.status === 'failure' ? 'error' : 'info'"
+            :type="statusAlertType"
             :closable="buildStatus.status !== 'building'"
             @click:close="resetBuild"
           >
