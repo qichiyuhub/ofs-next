@@ -249,6 +249,7 @@ onBeforeUnmount(() => {
     <v-menu
       v-model="isMenuOpen"
       :close-on-content-click="false"
+      :open-on-click="false"
       location="bottom"
       offset="4"
       max-height="300"
