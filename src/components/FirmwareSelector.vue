@@ -18,12 +18,37 @@ const packageStore = usePackageStore()
 
 const selectedModel = ref('')
 
-// Watch for version changes
-watch(() => firmware.currentVersion, (newVersion) => {
-  if (newVersion) {
-    firmware.changeVersion(newVersion)
+async function loadProfileForModel(model: string) {
+  if (!model) return
+
+  await firmware.selectDevice(model)
+
+  if (firmware.selectedProfile && firmware.currentVersion && firmware.selectedDevice?.target) {
+    const arch = firmware.selectedProfile.arch_packages
+    await packageStore.loadPackagesForDevice(
+      firmware.currentVersion,
+      arch,
+      firmware.selectedDevice.target
+    )
   }
-})
+}
+
+// Watch for version changes
+watch(
+  () => firmware.currentVersion,
+  async (newVersion, oldVersion) => {
+    if (!newVersion || newVersion === oldVersion) return
+
+    const currentModel = selectedModel.value
+
+    await firmware.changeVersion(newVersion)
+
+    if (currentModel) {
+      packageStore.clearAllPackages()
+      await loadProfileForModel(currentModel)
+    }
+  }
+)
 
 // Watch for model selection
 watch(selectedModel, async (newModel, oldModel) => {
@@ -33,18 +58,7 @@ watch(selectedModel, async (newModel, oldModel) => {
       packageStore.clearAllPackages()
     }
 
-    // Select device and wait for profile to load
-    await firmware.selectDevice(newModel)
-
-    // Auto-load packages immediately after selecting the model
-    if (firmware.selectedProfile && firmware.currentVersion && firmware.selectedDevice?.target) {
-      const arch = firmware.selectedProfile.arch_packages
-      await packageStore.loadPackagesForDevice(
-        firmware.currentVersion,
-        arch,
-        firmware.selectedDevice.target
-      )
-    }
+    await loadProfileForModel(newModel)
   } else {
     firmware.selectedDevice = null
     firmware.selectedProfile = null

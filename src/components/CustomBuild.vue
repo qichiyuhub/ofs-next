@@ -129,12 +129,22 @@ const canBuild = computed(() => {
 })
 
 // Watch for device changes
-watch(() => firmware.selectedDevice, () => {
-  // Reset build status when device changes
-  buildStatus.value = null
-  buildError.value = ''
-  stopPolling()
-})
+watch(
+  () => firmware.selectedDevice,
+  (newDevice, oldDevice) => {
+    if (!oldDevice) return
+    resetCustomConfiguration()
+  }
+)
+
+watch(
+  () => firmware.currentVersion,
+  (newVersion, oldVersion) => {
+    if (oldVersion && newVersion !== oldVersion) {
+      resetCustomConfiguration()
+    }
+  }
+)
 
 watch(
   () => [buildStatus.value?.stderr, buildStatus.value?.stdout],
@@ -172,6 +182,27 @@ function getModuleDisplayName(moduleKey: string): string {
 function closeValidationErrorDialog() {
   showValidationErrorDialog.value = false
   validationErrors.value = {}
+}
+
+function resetCustomConfiguration() {
+  stopPolling()
+  buildStatus.value = null
+  buildError.value = ''
+  expandedLogPanels.value = []
+  showValidationErrorDialog.value = false
+  validationErrors.value = {}
+  showPackageDetail.value = false
+  selectedPackageDetail.value = null
+
+  uciDefaultsContent.value = ''
+  rootfsSizeMb.value = null
+  repositories.value = []
+  repositoryKeys.value = []
+
+  packageStore.clearAllPackages()
+  if (config.enable_module_management) {
+    moduleStore.resetAll()
+  }
 }
 
 // Get current custom build configuration for saving

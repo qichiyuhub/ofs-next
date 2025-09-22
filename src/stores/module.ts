@@ -256,6 +256,12 @@ export const useModuleStore = defineStore('module', () => {
     }
   }
 
+  function resetAll(): void {
+    sources.value = []
+    selections.value = []
+    error.value = ''
+  }
+
   return {
     // State
     sources,
@@ -279,6 +285,7 @@ export const useModuleStore = defineStore('module', () => {
     getModuleSelection,
     isModuleSelected,
     validateModuleSelection,
-    validateAllSelections
+    validateAllSelections,
+    resetAll
   }
 })
