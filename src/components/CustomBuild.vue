@@ -38,6 +38,7 @@ const buildStatus = ref<AsuBuildResponse | null>(null)
 const isBuilding = ref(false)
 const buildError = ref('')
 const pollInterval = ref<number | null>(null)
+const expandedLogPanels = ref<string[]>([])
 
 // Validation error dialog
 const showValidationErrorDialog = ref(false)
@@ -104,6 +105,17 @@ watch(() => firmware.selectedDevice, () => {
   buildError.value = ''
   stopPolling()
 })
+
+watch(
+  () => [buildStatus.value?.stderr, buildStatus.value?.stdout],
+  ([stderr, stdout]) => {
+    const panels: string[] = []
+    if (stderr) panels.push('stderr')
+    if (stdout) panels.push('stdout')
+    expandedLogPanels.value = panels
+  },
+  { immediate: true }
+)
 
 // Helper functions
 function getModuleDisplayName(moduleKey: string): string {
@@ -710,8 +722,12 @@ onUnmounted(() => {
             <v-icon icon="mdi-text-box-outline" size="small" class="mr-2" />
             <span class="text-subtitle2">构建日志</span>
           </div>
-          <v-expansion-panels variant="accordion">
-            <v-expansion-panel v-if="buildStatus.stderr">
+          <v-expansion-panels
+            v-model="expandedLogPanels"
+            variant="accordion"
+            multiple
+          >
+            <v-expansion-panel v-if="buildStatus.stderr" value="stderr">
               <v-expansion-panel-title>
                 <code>STDERR</code>
               </v-expansion-panel-title>
@@ -720,7 +736,7 @@ onUnmounted(() => {
               </v-expansion-panel-text>
             </v-expansion-panel>
 
-            <v-expansion-panel v-if="buildStatus.stdout">
+            <v-expansion-panel v-if="buildStatus.stdout" value="stdout">
               <v-expansion-panel-title>
                 <code>STDOUT</code>
               </v-expansion-panel-title>
