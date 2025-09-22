@@ -10,6 +10,10 @@ const showSaveDialog = ref(false)
 const showLoadDialog = ref(false)
 const showImportDialog = ref(false)
 const showExportDialog = ref(false)
+const isCopyingShareLink = ref(false)
+const shareSnackbar = ref(false)
+const shareSnackbarMessage = ref('')
+const shareSnackbarColor = ref<'success' | 'error'>('success')
 
 const saveForm = ref({
   name: '',
@@ -42,6 +46,49 @@ const sortedConfigurations = computed(() => {
 })
 
 // Methods
+async function copyShareLink() {
+  if (isCopyingShareLink.value) return
+
+  const result = configStore.getShareConfigParam()
+  if (!result.success) {
+    shareSnackbarColor.value = 'error'
+    shareSnackbarMessage.value = result.message || '生成共享配置失败'
+    shareSnackbar.value = true
+    return
+  }
+
+  const url = new URL(window.location.href)
+  url.searchParams.set('config', result.value)
+
+  const shareUrl = url.toString()
+  isCopyingShareLink.value = true
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareUrl)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = shareUrl
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'absolute'
+      textarea.style.left = '-9999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    shareSnackbarColor.value = 'success'
+    shareSnackbarMessage.value = '链接已复制，可以分享当前配置。'
+  } catch (error) {
+    console.error('Failed to copy share link', error)
+    shareSnackbarColor.value = 'error'
+    shareSnackbarMessage.value = '复制链接失败，请重试。'
+  } finally {
+    shareSnackbar.value = true
+    isCopyingShareLink.value = false
+  }
+}
+
 function openSaveDialog() {
   if (configStore.currentConfigName) {
     saveForm.value.name = configStore.currentConfigName
@@ -205,6 +252,15 @@ function formatDate(date: Date): string {
           </v-btn>
           <v-btn
             variant="outlined"
+            prepend-icon="mdi-link-variant"
+            :loading="isCopyingShareLink"
+            @click="copyShareLink"
+            class="mr-3"
+          >
+            复制分享链接
+          </v-btn>
+          <v-btn
+            variant="outlined"
             prepend-icon="mdi-import"
             @click="openImportDialog"
           >
@@ -224,6 +280,13 @@ function formatDate(date: Date): string {
             icon="mdi-folder-open"
             variant="outlined"
             @click="openLoadDialog"
+            class="mr-2"
+          />
+          <v-btn
+            icon="mdi-link-variant"
+            variant="outlined"
+            :disabled="isCopyingShareLink"
+            @click="copyShareLink"
             class="mr-2"
           />
           <v-btn
@@ -467,5 +530,14 @@ function formatDate(date: Date): string {
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar
+      v-model="shareSnackbar"
+      :color="shareSnackbarColor"
+      timeout="3000"
+      location="bottom"
+    >
+      {{ shareSnackbarMessage }}
+    </v-snackbar>
   </div>
 </template>

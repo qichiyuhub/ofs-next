@@ -7,6 +7,7 @@ import { useModuleStore } from './module'
 import { usePackageStore } from './package'
 import { configManager } from '@/services/configManager'
 import { config } from '@/config'
+import { encodeConfigurationForUrl, decodeConfigurationFromUrl } from '@/services/urlConfig'
 import type { 
   SavedConfiguration, 
   ConfigurationSummary, 
@@ -43,6 +44,7 @@ export const useConfigStore = defineStore('config', () => {
   const currentConfigName = ref<string>('')
   const isLoading = ref(false)
   const error = ref<string>('')
+  const skipAutoLoad = ref(false)
 
   // Get other stores
   const firmwareStore = useFirmwareStore()
@@ -72,6 +74,86 @@ export const useConfigStore = defineStore('config', () => {
     getAllAppState = getter
   }
 
+  function disableAutoLoad() {
+    skipAutoLoad.value = true
+  }
+
+  function enableAutoLoad() {
+    skipAutoLoad.value = false
+  }
+
+  function generateConfigId(prefix = 'config'): string {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+  }
+
+  function buildConfigurationData(
+    name: string,
+    description?: string,
+    options?: { forShare?: boolean }
+  ): SavedConfiguration {
+    if (!firmwareStore.selectedDevice || !firmwareStore.selectedProfile) {
+      throw new Error('请先选择设备')
+    }
+
+    const useExistingId = !options?.forShare && currentConfigId.value
+    const id = useExistingId ? currentConfigId.value : generateConfigId(options?.forShare ? 'share' : 'config')
+    const createdAt = useExistingId
+      ? currentConfigSummary.value?.createdAt || new Date()
+      : new Date()
+    const customBuildData = getAllAppState
+      ? getAllAppState().customBuild as {
+          packageConfiguration: { addedPackages: string[]; removedPackages: string[] }
+          uciDefaults?: string
+          rootfsSizeMb?: number
+          repositories: { name: string; url: string }[]
+          repositoryKeys: string[]
+        }
+      : {
+          packageConfiguration: { addedPackages: [], removedPackages: [] },
+          repositories: [],
+          repositoryKeys: []
+        }
+
+    const baseConfig: SavedConfiguration = {
+      id,
+      name,
+      description,
+      version: '1.0.0',
+      createdAt,
+      updatedAt: new Date(),
+
+      device: {
+        model: firmwareStore.selectedDevice.title,
+        target: firmwareStore.selectedDevice.target,
+        profile: firmwareStore.selectedProfile.id,
+        version: firmwareStore.currentVersion || 'latest'
+      },
+
+      customBuild: customBuildData,
+
+      ...(config.enable_module_management
+        ? {
+            modules: {
+              sources: moduleStore.sources.map(source => ({
+                id: source.id,
+                name: source.name,
+                url: source.url,
+                ref: source.ref
+              })),
+              selections: moduleStore.selections.map(selection => ({
+                sourceId: selection.sourceId,
+                moduleId: selection.moduleId,
+                parameters: { ...selection.parameters },
+                userDownloads: { ...selection.userDownloads }
+              }))
+            }
+          }
+        : {})
+    }
+
+    return baseConfig
+  }
+
   async function saveCurrentConfiguration(name: string, description?: string): Promise<boolean> {
     if (!firmwareStore.selectedDevice || !firmwareStore.selectedProfile) {
       error.value = '请先选择设备'
@@ -82,54 +164,7 @@ export const useConfigStore = defineStore('config', () => {
     error.value = ''
 
     try {
-      // Create configuration object
-      const configData: SavedConfiguration = {
-        id: currentConfigId.value || `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name,
-        description,
-        version: '1.0.0',
-        createdAt: currentConfigId.value ? currentConfigSummary.value?.createdAt || new Date() : new Date(),
-        updatedAt: new Date(),
-        
-        // Device configuration
-        device: {
-          model: firmwareStore.selectedDevice.title, // Use title as key
-          target: firmwareStore.selectedDevice.target,
-          profile: firmwareStore.selectedProfile.id,
-          version: firmwareStore.currentVersion || 'latest'
-        },
-
-        // Custom build configuration  
-        customBuild: getAllAppState ? getAllAppState().customBuild as {
-          packageConfiguration: { addedPackages: string[]; removedPackages: string[] };
-          uciDefaults?: string;
-          rootfsSizeMb?: number;
-          repositories: { name: string; url: string; }[];
-          repositoryKeys: string[];
-        } : {
-          packageConfiguration: { addedPackages: [], removedPackages: [] },
-          repositories: [],
-          repositoryKeys: []
-        },
-
-        // Module configuration (only if module management is enabled)
-        ...(config.enable_module_management ? {
-          modules: {
-            sources: moduleStore.sources.map(source => ({
-              id: source.id,
-              name: source.name,
-              url: source.url,
-              ref: source.ref
-            })),
-            selections: moduleStore.selections.map(selection => ({
-              sourceId: selection.sourceId,
-              moduleId: selection.moduleId,
-              parameters: { ...selection.parameters },
-              userDownloads: { ...selection.userDownloads }
-            }))
-          }
-        } : {})
-      }
+      const configData = buildConfigurationData(name, description)
 
       const success = configManager.saveConfiguration(configData)
       if (success) {
@@ -157,6 +192,106 @@ export const useConfigStore = defineStore('config', () => {
     applyAppState = applier
   }
 
+  async function applyConfigurationState(
+    savedConfig: SavedConfiguration,
+    options?: { markAsShared?: boolean }
+  ): Promise<boolean> {
+    // Apply device configuration
+    await firmwareStore.changeVersion(savedConfig.device.version)
+
+    const devicesLoaded = await waitForCondition(
+      () => Object.keys(firmwareStore.devices).length > 0
+    )
+
+    if (!devicesLoaded) {
+      error.value = '设备列表加载失败，请重试'
+      return false
+    }
+
+    const device = firmwareStore.devices[savedConfig.device.model]
+    if (!device) {
+      error.value = `未找到设备: ${savedConfig.device.model}，可能版本不匹配或设备已下线`
+      return false
+    }
+
+    await firmwareStore.selectDevice(savedConfig.device.model)
+
+    await waitForCondition(() => !!firmwareStore.selectedProfile)
+
+    if (packageStore.totalPackages === 0 && firmwareStore.selectedProfile) {
+      await packageStore.loadPackagesForDevice(
+        savedConfig.device.version,
+        firmwareStore.selectedProfile.arch_packages,
+        savedConfig.device.target
+      )
+    }
+
+    if (config.enable_module_management && savedConfig.modules) {
+      moduleStore.sources = []
+      moduleStore.selections = []
+
+      for (const sourceConfig of savedConfig.modules.sources) {
+        try {
+          await moduleStore.addModuleSource(
+            sourceConfig.url,
+            sourceConfig.name,
+            sourceConfig.ref
+          )
+        } catch (err) {
+          console.warn(`Failed to load module source: ${sourceConfig.name}`, err)
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      for (const selectionConfig of savedConfig.modules.selections) {
+        try {
+          moduleStore.selectModule(selectionConfig.sourceId, selectionConfig.moduleId)
+
+          for (const [key, value] of Object.entries(selectionConfig.parameters)) {
+            moduleStore.updateModuleParameter(
+              selectionConfig.sourceId,
+              selectionConfig.moduleId,
+              key,
+              value as string
+            )
+          }
+
+          for (const [name, url] of Object.entries(selectionConfig.userDownloads)) {
+            moduleStore.updateUserDownload(
+              selectionConfig.sourceId,
+              selectionConfig.moduleId,
+              name,
+              url as string
+            )
+          }
+        } catch (err) {
+          console.warn(`Failed to apply module selection: ${selectionConfig.moduleId}`, err)
+        }
+      }
+    }
+
+    if (applyAppState) {
+      await waitForCondition(
+        () => !packageStore.isLoading && packageStore.totalPackages > 0,
+        10000
+      )
+
+      applyAppState(savedConfig)
+    }
+
+    if (options?.markAsShared) {
+      currentConfigId.value = ''
+      currentConfigName.value = savedConfig.name || '共享配置'
+    } else {
+      currentConfigId.value = savedConfig.id
+      currentConfigName.value = savedConfig.name
+      configManager.setLastUsedConfigId(savedConfig.id)
+    }
+
+    return true
+  }
+
   async function loadConfiguration(id: string): Promise<boolean> {
     isLoading.value = true
     error.value = ''
@@ -167,117 +302,52 @@ export const useConfigStore = defineStore('config', () => {
         error.value = '配置不存在'
         return false
       }
-
-      // Apply device configuration
-      await firmwareStore.changeVersion(savedConfig.device.version)
-      
-      // Wait for devices to load
-      const devicesLoaded = await waitForCondition(
-        () => Object.keys(firmwareStore.devices).length > 0
-      )
-
-      if (!devicesLoaded) {
-        error.value = '设备列表加载失败，请重试'
-        return false
-      }
-
-      const device = firmwareStore.devices[savedConfig.device.model]
-      if (device) {
-        await firmwareStore.selectDevice(savedConfig.device.model)
-        
-        // Wait for profile to be fully loaded
-        await waitForCondition(
-          () => !!firmwareStore.selectedProfile
-        )
-        
-        // Load package feeds if not loaded and profile is available
-        if (packageStore.totalPackages === 0 && firmwareStore.selectedProfile) {
-          // Use arch_packages from profile data
-          await packageStore.loadPackagesForDevice(
-            savedConfig.device.version,
-            firmwareStore.selectedProfile.arch_packages,
-            savedConfig.device.target
-          )
-        }
-      } else {
-        error.value = `未找到设备: ${savedConfig.device.model}，可能版本不匹配或设备已下线`
-        return false
-      }
-
-      // Apply module sources (only if module management is enabled and config has modules)
-      if (config.enable_module_management && savedConfig.modules) {
-        moduleStore.sources = []
-        moduleStore.selections = []
-        
-        for (const sourceConfig of savedConfig.modules.sources) {
-          try {
-            await moduleStore.addModuleSource(
-              sourceConfig.url,
-              sourceConfig.name,
-              sourceConfig.ref
-            )
-          } catch (err) {
-            console.warn(`Failed to load module source: ${sourceConfig.name}`, err)
-          }
-        }
-
-        // Wait for sources to load, then apply selections
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        for (const selectionConfig of savedConfig.modules.selections) {
-          try {
-            moduleStore.selectModule(selectionConfig.sourceId, selectionConfig.moduleId)
-          
-          // Apply parameters
-          for (const [key, value] of Object.entries(selectionConfig.parameters)) {
-            moduleStore.updateModuleParameter(
-              selectionConfig.sourceId,
-              selectionConfig.moduleId,
-              key,
-              value as string
-            )
-          }
-
-          // Apply user downloads
-          for (const [name, url] of Object.entries(selectionConfig.userDownloads)) {
-            moduleStore.updateUserDownload(
-              selectionConfig.sourceId,
-              selectionConfig.moduleId,
-              name,
-              url as string
-            )
-          }
-          } catch (err) {
-            console.warn(`Failed to apply module selection: ${selectionConfig.moduleId}`, err)
-          }
-        }
-      }
-
-      // Apply full configuration to application (wait for package feeds to load)
-      if (applyAppState) {
-        // Wait for package loading to complete
-        await waitForCondition(
-          () => !packageStore.isLoading && packageStore.totalPackages > 0,
-          10000 // 10 seconds max wait
-        )
-        
-        // Apply configuration after packages are loaded
-        applyAppState(savedConfig)
-      }
-
-      currentConfigId.value = savedConfig.id
-      currentConfigName.value = savedConfig.name
-      
-      // Set as last used configuration
-      configManager.setLastUsedConfigId(savedConfig.id)
-
-      return true
+      const success = await applyConfigurationState(savedConfig)
+      return success
     } catch (err) {
       error.value = '加载配置失败'
       console.error(err)
       return false
     } finally {
       isLoading.value = false
+    }
+  }
+
+  async function loadSharedConfiguration(encoded: string): Promise<boolean> {
+    isLoading.value = true
+    error.value = ''
+
+    try {
+      const sharedConfig = decodeConfigurationFromUrl(encoded)
+      if (!sharedConfig) {
+        error.value = '链接中的配置无效或已过期'
+        return false
+      }
+
+      const success = await applyConfigurationState(sharedConfig, { markAsShared: true })
+      return success
+    } catch (err) {
+      error.value = '加载共享配置失败'
+      console.error(err)
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  function getShareConfigParam() {
+    try {
+      const name = currentConfigName.value
+        || firmwareStore.selectedDevice?.title
+        || '共享配置'
+
+      const snapshot = buildConfigurationData(name, undefined, { forShare: true })
+      const encoded = encodeConfigurationForUrl(snapshot)
+      return { success: true as const, value: encoded }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '生成共享配置失败'
+      error.value = message
+      return { success: false as const, message }
     }
   }
 
@@ -363,7 +433,11 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   // Auto-load last used configuration on startup
-  async function autoLoadLastConfig(): Promise<void> {
+  async function autoLoadLastConfig(force = false): Promise<void> {
+    if (!force && skipAutoLoad.value) {
+      return
+    }
+
     const lastConfigId = configManager.getLastUsedConfigId()
     if (lastConfigId) {
       const config = configManager.loadConfiguration(lastConfigId)
@@ -397,13 +471,17 @@ export const useConfigStore = defineStore('config', () => {
     loadSavedConfigurations,
     saveCurrentConfiguration,
     loadConfiguration,
+    loadSharedConfiguration,
     deleteConfiguration,
     exportConfiguration,
     importConfiguration,
     newConfiguration,
     clearError,
+    getShareConfigParam,
     setAppStateGetter,
     setAppStateApplier,
-    autoLoadLastConfig
+    autoLoadLastConfig,
+    disableAutoLoad,
+    enableAutoLoad
   }
 })

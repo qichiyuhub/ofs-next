@@ -14,6 +14,14 @@ const firmwareStore = useFirmwareStore()
 const configStore = useConfigStore()
 const packageStore = usePackageStore()
 
+const initialSharedConfigParam = typeof window !== 'undefined'
+  ? new URL(window.location.href).searchParams.get('config')
+  : null
+
+if (initialSharedConfigParam) {
+  configStore.disableAutoLoad()
+}
+
 // Configuration Manager state
 const showConfigManager = ref(false)
 
@@ -74,6 +82,14 @@ onMounted(async () => {
   await firmwareStore.loadVersions()
   if (firmwareStore.currentVersion) {
     await firmwareStore.loadDevices(firmwareStore.currentVersion)
+  }
+
+  if (initialSharedConfigParam) {
+    const success = await configStore.loadSharedConfiguration(initialSharedConfigParam)
+    configStore.enableAutoLoad()
+    if (!success) {
+      await configStore.autoLoadLastConfig(true)
+    }
   }
 })
 </script>
