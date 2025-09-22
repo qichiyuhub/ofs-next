@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useI18nStore } from '@/stores/i18n'
 import { useFirmwareStore } from '@/stores/firmware'
 import { useModuleStore } from '@/stores/module'
@@ -39,6 +39,8 @@ const isBuilding = ref(false)
 const buildError = ref('')
 const pollInterval = ref<number | null>(null)
 const expandedLogPanels = ref<string[]>([])
+const stderrLogRef = ref<HTMLElement | null>(null)
+const stdoutLogRef = ref<HTMLElement | null>(null)
 
 // Validation error dialog
 const showValidationErrorDialog = ref(false)
@@ -113,9 +115,18 @@ watch(
     if (stderr) panels.push('stderr')
     if (stdout) panels.push('stdout')
     expandedLogPanels.value = panels
+    nextTick(() => {
+      scrollToBottom(stderrLogRef.value)
+      scrollToBottom(stdoutLogRef.value)
+    })
   },
   { immediate: true }
 )
+
+function scrollToBottom(element: HTMLElement | null) {
+  if (!element) return
+  element.scrollTop = element.scrollHeight
+}
 
 // Helper functions
 function getModuleDisplayName(moduleKey: string): string {
@@ -732,7 +743,7 @@ onUnmounted(() => {
                 <code>STDERR</code>
               </v-expansion-panel-title>
               <v-expansion-panel-text>
-                <pre class="build-log">{{ buildStatus.stderr }}</pre>
+                <pre ref="stderrLogRef" class="build-log">{{ buildStatus.stderr }}</pre>
               </v-expansion-panel-text>
             </v-expansion-panel>
 
@@ -741,7 +752,7 @@ onUnmounted(() => {
                 <code>STDOUT</code>
               </v-expansion-panel-title>
               <v-expansion-panel-text>
-                <pre class="build-log">{{ buildStatus.stdout }}</pre>
+                <pre ref="stdoutLogRef" class="build-log">{{ buildStatus.stdout }}</pre>
               </v-expansion-panel-text>
             </v-expansion-panel>
           </v-expansion-panels>
