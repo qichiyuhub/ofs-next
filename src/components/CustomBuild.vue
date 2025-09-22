@@ -460,62 +460,6 @@ onUnmounted(() => {
 
         <v-divider v-if="config.enable_module_management" class="my-6" />
 
-        <!-- Build Status -->
-        <v-alert
-          v-if="buildStatus"
-          :type="buildStatus.status === 'success' ? 'success' : 
-                buildStatus.status === 'failure' ? 'error' : 'info'"
-          class="mb-4"
-          :closable="buildStatus.status !== 'building'"
-          @click:close="resetBuild"
-        >
-          <div class="d-flex align-center">
-            <v-progress-circular
-              v-if="buildStatus.status === 'building' || buildStatus.status === 'requested'"
-              indeterminate
-              size="24"
-              class="mr-3"
-            />
-            <div>
-              <div>{{ statusMessage }}</div>
-              <div v-if="buildStatus.queue_position" class="text-caption">
-                队列位置: {{ buildStatus.queue_position }}
-              </div>
-            </div>
-          </div>
-          
-          <!-- Build Success - Show download links -->
-          <div v-if="buildStatus.status === 'success' && buildStatus.images" class="mt-3">
-            <v-divider class="mb-3" />
-            <div class="text-subtitle2 mb-2">{{ i18n.t('tr-custom-downloads', '自定义下载') }}</div>
-            <div class="d-flex flex-wrap gap-2">
-              <v-btn
-                v-for="image in buildStatus.images"
-                :key="image.name"
-                :href="`${config.asu_url}/store/${buildStatus.request_hash}/${image.name}`"
-                target="_blank"
-                color="success"
-                variant="elevated"
-                size="small"
-                prepend-icon="mdi-download"
-              >
-                {{ image.type.toUpperCase() }}
-              </v-btn>
-            </div>
-          </div>
-        </v-alert>
-
-        <!-- Build Error -->
-        <v-alert
-          v-if="buildError"
-          type="error"
-          closable
-          class="mb-4"
-          @click:close="buildError = ''"
-        >
-          {{ buildError }}
-        </v-alert>
-
         <v-row>
           <!-- Package Manager -->
           <v-col cols="12">
@@ -725,6 +669,62 @@ onUnmounted(() => {
             {{ i18n.t('tr-request-build', '请求构建') }}
           </v-btn>
         </div>
+
+        <!-- Build Status -->
+        <div v-if="buildStatus" class="mt-6">
+          <v-alert
+            :type="buildStatus.status === 'success' ? 'success' : 
+                  buildStatus.status === 'failure' ? 'error' : 'info'"
+            :closable="buildStatus.status !== 'building'"
+            @click:close="resetBuild"
+          >
+            <div class="d-flex align-center">
+              <v-progress-circular
+                v-if="buildStatus.status === 'building' || buildStatus.status === 'requested'"
+                indeterminate
+                size="24"
+                class="mr-3"
+              />
+              <div>
+                <div>{{ statusMessage }}</div>
+                <div v-if="buildStatus.queue_position" class="text-caption">
+                  队列位置: {{ buildStatus.queue_position }}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Build Success - Show download links -->
+            <div v-if="buildStatus.status === 'success' && buildStatus.images" class="mt-3">
+              <v-divider class="mb-3" />
+              <div class="text-subtitle2 mb-2">{{ i18n.t('tr-custom-downloads', '自定义下载') }}</div>
+              <div class="d-flex flex-wrap gap-2">
+                <v-btn
+                  v-for="image in buildStatus.images"
+                  :key="image.name"
+                  :href="`${config.asu_url}/store/${buildStatus.request_hash}/${image.name}`"
+                  target="_blank"
+                  color="success"
+                  variant="elevated"
+                  size="small"
+                  prepend-icon="mdi-download"
+                >
+                  {{ image.type.toUpperCase() }}
+                </v-btn>
+              </div>
+            </div>
+          </v-alert>
+        </div>
+
+        <!-- Build Error -->
+        <v-alert
+          v-if="buildError"
+          type="error"
+          closable
+          class="mt-4"
+          @click:close="buildError = ''"
+        >
+          {{ buildError }}
+        </v-alert>
 
         <!-- Build Logs -->
         <div v-if="buildStatus && (buildStatus.stdout || buildStatus.stderr)" class="mt-6">
