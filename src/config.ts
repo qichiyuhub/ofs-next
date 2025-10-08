@@ -46,8 +46,11 @@ export const config: Config = {
   // 显示帮助文本
   show_help: true,
 
+  // 【重要】为满足构建时的类型检查，即使后续会被服务器数据覆盖，也需要提供一个初始值
+  versions: [],
+  default_version: "",
+
   // 镜像下载 URL: 设置为官方 OpenWrt 下载服务器
-  // 这是解决 "Failed to fetch" 问题的核心
   image_url: "https://downloads.openwrt.org",
 
   // 显示快照 (snapshot) 版本
