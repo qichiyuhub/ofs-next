@@ -1,72 +1,70 @@
-// 定义配置对象的类型接口
 export interface Config {
-  // 品牌名称
+  // Brand name
   brand_name: string
 
-  // Logo 指向的主页链接
+  // Homepage URL (for logo link)
   homepage_url: string
 
-  // 是否显示镜像文件的帮助文本
+  // Show help text for images
   show_help: boolean
 
-  // 【重要修改】移除了 '?'，将 versions 声明为必需的字段
+  // Versions list (optional if provided by .versions.json)
   versions: string[]
 
-  // 【重要修改】移除了 '?'，将 default_version 声明为必需的字段
+  // Pre-selected version (optional if provided by .versions.json)
   default_version: string
 
-  // 镜像下载服务器的 URL (最关键)
+  // Image download URL (e.g. "https://downloads.openwrt.org")
   image_url: string
 
-  // 是否在版本列表中加入快照版 (snapshot)
+  // Insert snapshot versions (optional)
   show_snapshots?: boolean
 
-  // "More info" 链接的模板 (可选)
+  // Info link URL (optional)
   info_url?: string
 
-  // "Attended Sysupgrade" 在线升级服务器地址 (可选)
+  // Attended Sysupgrade Server support (optional)
   asu_url?: string
   asu_extra_packages?: string[]
 
-  // 是否启用模块管理功能 (可选)
+  // Enable/disable module management feature (optional)
   enable_module_management?: boolean
 
-  // 使用 apk v3 包索引的版本 (可选)
+  // Versions that use apk v3 package index (packages.adb)
   apk_versions?: string[]
 }
 
-// 导出的具体配置信息
 export const config: Config = {
-  // 品牌名称: 设置为 OpenWrt
-  brand_name: "OpenWrt",
+  // Brand name
+  brand_name: "ImmortalWrt",
 
-  // 主页链接: 设置为 OpenWrt 官网
-  homepage_url: "https://open_wrt.org/",
+  // Homepage URL (for logo link)
+  homepage_url: "https://immortalwrt.org/",
 
-  // 显示帮助文本
+  // Show help text for images
   show_help: true,
 
-  // 提供符合上方【必需】声明的初始值
-  versions: [],
-  default_version: "",
+  // Versions list (optional if provided by .versions.json)
+  versions: ["23.05.4", "19.07.10"],
 
-  // 镜像下载 URL: 设置为官方 OpenWrt 下载服务器
-  image_url: "https://downloads.openwrt.org",
+  // Pre-selected version (optional if provided by .versions.json)
+  default_version: "23.05.4",
 
-  // 显示快照 (snapshot) 版本
+  // Image download URL (e.g. "https://downloads.openwrt.org")
+  image_url: "https://downloads.immortalwrt.org",
+
+  // Insert snapshot versions (optional)
   show_snapshots: true,
 
-  // "More info" 链接指向 OpenWrt 的硬件列表 (Table of Hardware)
+  // Info link URL (optional)
   info_url: "https://openwrt.org/start?do=search&id=toh&q={title} @toh",
 
-  // 使用官方的 Attended Sysupgrade (ASU) 服务器
-  asu_url: "https://sysupgrade.openwrt.org",
-  // 在线升级时默认额外包含 luci (Web管理界面)
+  // Attended Sysupgrade Server support (optional)
+  asu_url: "https://sysupgrade.kyarucloud.moe",
   asu_extra_packages: ["luci"],
 
-  // 禁用模块管理功能 (保持默认)
+  // Enable/disable module management feature (optional)
   enable_module_management: false,
-  
-  // 指定 SNAPSHOT 版本使用特定的包索引格式
+  // Treat these versions as using apk v3 index
   apk_versions: ["SNAPSHOT"]
 }
