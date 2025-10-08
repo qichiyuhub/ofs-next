@@ -1,6 +1,6 @@
 # OpenWrt Firmware Selector Next
 
-现代化的 OpenWrt 固件选择器，支持自定义构建、软件包管理和模块配置
+现代化的 OpenWrt 固件选择器，支持自定义构建、软件包管理和模块配置...
 
 ## 特性
 
