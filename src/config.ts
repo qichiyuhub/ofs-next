@@ -9,11 +9,11 @@ export interface Config {
   // 是否显示镜像文件的帮助文本
   show_help: boolean
 
-  // 版本列表 (可选，服务器会自动提供 .versions.json 文件)
-  versions?: string[]
+  // 【重要修改】移除了 '?'，将 versions 声明为必需的字段
+  versions: string[]
 
-  // 预选中的版本 (可选，服务器会自动提供 .versions.json 文件)
-  default_version?: string
+  // 【重要修改】移除了 '?'，将 default_version 声明为必需的字段
+  default_version: string
 
   // 镜像下载服务器的 URL (最关键)
   image_url: string
@@ -41,12 +41,12 @@ export const config: Config = {
   brand_name: "OpenWrt",
 
   // 主页链接: 设置为 OpenWrt 官网
-  homepage_url: "https://openwrt.org/",
+  homepage_url: "https://open_wrt.org/",
 
   // 显示帮助文本
   show_help: true,
 
-  // 【重要】为满足构建时的类型检查，即使后续会被服务器数据覆盖，也需要提供一个初始值
+  // 提供符合上方【必需】声明的初始值
   versions: [],
   default_version: "",
 
